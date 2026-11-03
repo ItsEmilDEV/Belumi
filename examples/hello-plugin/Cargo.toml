@@ -1,0 +1,17 @@
+[package]
+name = "hello-plugin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Example Belumi server plugin: welcome message, /hello, chat filter"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+belumi-plugin-sdk = { path = "../../crates/belumi-plugin-sdk" }
+
+[lints]
+workspace = true

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Belumi
+Comment=Minecraft 26.2 / 26.3 client launcher
+Exec=belumi-launcher
+Icon=belumi
+StartupWMClass=belumi-launcher
+Categories=Game;
+Terminal=false

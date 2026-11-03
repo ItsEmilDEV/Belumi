@@ -1,0 +1,28 @@
+[package]
+name = "belumi-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Belumi server: WebAssembly plugin host (docs/server-plugins.md)"
+
+[dependencies]
+belumi-plugin-api = { path = "../belumi-plugin-api" }
+wasmtime = { version = "36", default-features = false, features = ["runtime", "cranelift", "std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "1.1"
+thiserror = "2"
+# "log": events reach the host game's logger when no tracing subscriber is installed.
+tracing = { version = "0.1", features = ["log"] }
+
+[dev-dependencies]
+wat = "1"
+tempfile = "3"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "belumi-server"
+path = "src/main.rs"

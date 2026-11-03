@@ -1,0 +1,8 @@
+name = "hello"
+version = "0.1.0"
+api_version = 1
+main = "plugin.wasm"
+description = "Welcomes players, answers /hello, filters one word in chat"
+subscribe = ["player_join", "chat"]
+permissions = ["messaging"]
+commands = ["hello"]

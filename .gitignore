@@ -1,0 +1,8 @@
+/target/
+*.log
+/logs/
+/.idea/
+/.horizon-cache/
+options.txt
+servers.dat
+command_history.txt

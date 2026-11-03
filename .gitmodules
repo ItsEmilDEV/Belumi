@@ -1,0 +1,4 @@
+[submodule "vendor/horizon"]
+	path = vendor/horizon
+	url = https://github.com/ItsEmilDEV/horizon.git
+	branch = belumi

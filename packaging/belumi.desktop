@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Belumi
+Comment=Minecraft 26.2 / 26.3 client
+Exec=horizon-client
+Icon=belumi
+StartupWMClass=belumi
+Terminal=false
+Categories=Game;
+NoDisplay=true

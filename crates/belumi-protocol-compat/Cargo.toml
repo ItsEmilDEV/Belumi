@@ -1,0 +1,24 @@
+[package]
+name = "belumi-protocol-compat"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Minecraft protocol compatibility layer for backward-compatible server connections"
+
+[dependencies]
+# Horizon protocol (26.3 baseline)
+horizon-protocol = { path = "../../vendor/horizon/crates/horizon-protocol" }
+horizon-core = { path = "../../vendor/horizon/crates/horizon-core" }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+
+# Error handling
+thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

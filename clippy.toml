@@ -1,0 +1,3 @@
+# Clippy configuration for Belumi
+# Deny warnings in CI, but allow during development
+warn-on-all-wildcard-imports = true

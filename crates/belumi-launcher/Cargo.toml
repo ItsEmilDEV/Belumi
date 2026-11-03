@@ -1,0 +1,20 @@
+[package]
+name = "belumi-launcher"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Belumi launcher: Microsoft sign-in and starting the game client (raw GUI)"
+
+[dependencies]
+belumi-core = { path = "../belumi-core" }
+eframe = { version = "0.37", default-features = false, features = ["glow", "default_fonts", "wayland", "x11", "clipboard", "links"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = { version = "2", features = ["json", "tls"], default-features = false }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true
