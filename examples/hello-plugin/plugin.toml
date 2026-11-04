@@ -5,4 +5,7 @@ main = "plugin.wasm"
 description = "Welcomes players, answers /hello, filters one word in chat"
 subscribe = ["player_join", "chat"]
 permissions = ["messaging"]
-commands = ["hello"]
+commands = ["hello", "players", "shout"]
+
+[command_levels]
+shout = 2

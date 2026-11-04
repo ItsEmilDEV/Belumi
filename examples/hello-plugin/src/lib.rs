@@ -16,6 +16,17 @@ impl Plugin for Hello {
                 self.joins += 1;
                 let _ = host::send_message_to(uuid, &format!("Welcome, {name}!"));
             }
+            Event::PluginCommand { uuid, name, args } if name == "players" => {
+                let list = host::player_list();
+                let names: Vec<_> = list.iter().map(|p| p.name.as_str()).collect();
+                let _ = host::send_message_to(
+                    uuid,
+                    &format!("{} online: {}", names.len(), names.join(", ")),
+                );
+            }
+            Event::PluginCommand { name, args, .. } if name == "shout" => {
+                let _ = host::broadcast_message(&args.to_uppercase());
+            }
             Event::PluginCommand { uuid, args, .. } => {
                 let _ = host::send_message_to(
                     uuid,

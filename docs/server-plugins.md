@@ -86,6 +86,8 @@ ban = 3
 Zu niedrige Stufe: der Spieler bekommt „You do not have permission…“, das Plugin sieht nichts. Das Manifest wird beim Laden
 geprüft (unbekannter Befehl oder Stufe über 4 = Fehler).
 
+Das Beispiel `examples/hello-plugin` zeigt `host::player_list()` (`/players`) und einen Befehl mit Stufe 2 (`/shout`).
+
 **Reload:** `/belumi reload` (Stufe 4) schickt `server_stop` an alle Plugins, liest `plugins/` neu und schickt `server_start`.
 
 **Events:** `server_start`, `server_stop`, `tick`, `player_join`, `player_quit`, `chat` (abbrechbar), `command` (abbrechbar),

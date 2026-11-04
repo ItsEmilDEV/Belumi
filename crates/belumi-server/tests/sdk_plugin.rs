@@ -37,6 +37,29 @@ fn hello_plugin_built_with_the_sdk() {
         "{acts:?}"
     );
 
+    m.set_roster(&[("u-1".into(), "Alex".into()), ("u-2".into(), "Sam".into())]);
+    assert_eq!(
+        m.try_command("u-1", 0, "/players"),
+        belumi_server::CommandOutcome::Ran
+    );
+    assert_eq!(
+        m.sync(),
+        vec![Action::Message {
+            uuid: "u-1".into(),
+            text: "2 online: Alex, Sam".into()
+        }]
+    );
+    assert_eq!(
+        m.try_command("u-1", 1, "/shout hi"),
+        belumi_server::CommandOutcome::Denied
+    );
+    m.sync();
+    assert_eq!(
+        m.try_command("u-1", 2, "/shout hi there"),
+        belumi_server::CommandOutcome::Ran
+    );
+    assert_eq!(m.sync(), vec![Action::Broadcast("HI THERE".into())]);
+
     let chat = |t: &str| Event::Chat {
         uuid: "u-1".into(),
         message: t.into(),
