@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  linux:
+    name: Linux archive
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libxkbcommon-x11-dev libwayland-dev \
+            libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev libudev-dev libopus-dev cmake pkg-config
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build the archive
+        env:
+          BELUMI_FEATURES: belumi,belumi-plugins
+        run: packaging/build-release.sh "${GITHUB_REF_NAME#v}"
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=""
+          case "$GITHUB_REF_NAME" in *-*) flags="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" $flags --generate-notes dist/*.tar.gz dist/*.sha256

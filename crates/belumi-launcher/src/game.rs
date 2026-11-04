@@ -19,7 +19,7 @@ pub fn arguments(settings: &Settings, signed_in: bool) -> Vec<String> {
         "--resources".to_owned(),
         settings.resources.clone(),
         "--protocol".to_owned(),
-        "auto".to_owned(),
+        crate::versions::protocol_arg(settings.active_version()),
     ];
     if !settings.active_server().is_empty() {
         args.push("--server".into());
@@ -94,6 +94,21 @@ mod tests {
         let offline = arguments(&settings, false);
         assert!(offline.contains(&"--name".to_owned()));
         assert!(!offline.contains(&"--session-stdin".to_owned()));
+    }
+
+    #[test]
+    fn the_selected_servers_version_picks_the_protocol() {
+        let mut settings = Settings::default();
+        let protocol = |s: &Settings| {
+            let args = arguments(s, false);
+            let i = args.iter().position(|a| a == "--protocol").unwrap();
+            args[i + 1].clone()
+        };
+        assert_eq!(protocol(&settings), "auto");
+        settings.servers[0].version = "26.2".into();
+        assert_eq!(protocol(&settings), "776");
+        settings.servers[0].version = "26.3".into();
+        assert_eq!(protocol(&settings), "native");
     }
 
     #[test]

@@ -4,6 +4,8 @@ mod prism;
 mod secret;
 mod settings;
 mod ui;
+mod update;
+mod versions;
 
 use auth::{Account, DeviceCode};
 use belumi_core::paths::BelumiPaths;
@@ -22,6 +24,7 @@ enum Event {
     Failed(String),
     Started,
     Exited(String),
+    Update(Option<update::Release>),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -58,6 +61,7 @@ struct App {
     log_read: Option<Instant>,
     tx: Sender<Event>,
     rx: Receiver<Event>,
+    update: Option<update::Release>,
 }
 
 impl App {
@@ -97,13 +101,27 @@ impl App {
             log_read: None,
             tx,
             rx,
+            update: None,
         };
+        app.check_for_update();
         if app.settings.account.is_some() && !app.settings.client_id.trim().is_empty() {
             app.renew();
         } else if app.settings.use_prism {
             app.import_prism(false);
         }
         app
+    }
+
+    fn check_for_update(&mut self) {
+        if !self.settings.check_updates {
+            return;
+        }
+        let channel = update::Channel::parse(&self.settings.update_channel);
+        let tx = self.tx.clone();
+        std::thread::spawn(move || {
+            let found = update::check(channel, env!("CARGO_PKG_VERSION")).unwrap_or(None);
+            let _ = tx.send(Event::Update(found));
+        });
     }
 
     fn save(&mut self) {
@@ -306,6 +324,7 @@ impl App {
                     }
                 }
                 Event::Started => {}
+                Event::Update(release) => self.update = release,
                 Event::Exited(text) => {
                     self.playing = false;
                     self.status = text;

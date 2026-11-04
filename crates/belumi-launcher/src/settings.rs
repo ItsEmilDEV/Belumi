@@ -18,6 +18,8 @@ pub struct SavedAccount {
 pub struct ServerEntry {
     pub name: String,
     pub address: String,
+    #[serde(default)]
+    pub version: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -34,6 +36,22 @@ pub struct Settings {
     pub use_prism: bool,
     pub prism_accounts_path: String,
     pub account: Option<SavedAccount>,
+    pub check_updates: bool,
+    pub update_channel: String,
+}
+
+fn installed_client() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let client = exe.parent()?.join("horizon-client");
+    client.is_file().then_some(client)
+}
+
+fn installed_resources() -> Option<PathBuf> {
+    installed_client()?;
+    let data = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))?;
+    Some(data.join("belumi/resources/26.3"))
 }
 
 impl Default for Settings {
@@ -54,20 +72,23 @@ impl Default for Settings {
             servers: vec![ServerEntry {
                 name: "Local server".into(),
                 address: "127.0.0.1:25565".into(),
+                version: String::new(),
             }],
             selected_server: 0,
-            client_binary: horizon
-                .join("target/fast/horizon-client")
+            client_binary: installed_client()
+                .unwrap_or_else(|| horizon.join("target/fast/horizon-client"))
                 .display()
                 .to_string(),
-            resources: horizon
-                .join(".local/horizon-client/26.3")
+            resources: installed_resources()
+                .unwrap_or_else(|| horizon.join(".local/horizon-client/26.3"))
                 .display()
                 .to_string(),
             offline_name: "BelumiPlayer".into(),
             use_prism: false,
             prism_accounts_path: String::new(),
             account: None,
+            check_updates: true,
+            update_channel: "stable".into(),
         }
     }
 }
@@ -89,12 +110,19 @@ impl Settings {
                     ServerEntry {
                         name: address.clone(),
                         address,
+                        version: String::new(),
                     },
                 );
                 settings.selected_server = 0;
             }
         }
         settings
+    }
+
+    pub fn active_version(&self) -> &str {
+        self.servers
+            .get(self.selected_server)
+            .map_or("", |s| s.version.trim())
     }
 
     pub fn active_server(&self) -> &str {
@@ -135,6 +163,7 @@ mod tests {
         settings.servers.push(ServerEntry {
             name: "Ex".into(),
             address: "example.org:25570".into(),
+            version: "26.2".into(),
         });
         settings.account = Some(SavedAccount {
             name: "Alex".into(),
@@ -184,6 +213,18 @@ mod tests {
                 .unwrap()
                 .contains("\"server\"")
         );
+    }
+
+    #[test]
+    fn settings_from_before_versions_and_updates_still_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("old.json");
+        std::fs::write(&path, r#"{"servers":[{"name":"A","address":"a:1"}],"selected_server":0}"#).unwrap();
+        let loaded = Settings::load(&path);
+        assert_eq!(loaded.active_server(), "a:1");
+        assert_eq!(loaded.active_version(), "");
+        assert!(loaded.check_updates);
+        assert_eq!(loaded.update_channel, "stable");
     }
 
     #[test]

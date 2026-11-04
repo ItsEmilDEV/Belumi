@@ -295,6 +295,14 @@ impl App {
             });
         });
 
+        if let Some(release) = self.update.clone() {
+            card(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new(format!("Update available: {}", release.tag)).strong());
+                    ui.hyperlink_to("Open the release page", &release.url);
+                });
+            });
+        }
         ui.label(muted("SERVERS"));
         let mut remove = None;
         let mut changed = false;
@@ -302,7 +310,7 @@ impl App {
             egui::ScrollArea::vertical()
                 .max_height(150.0)
                 .show(ui, |ui| {
-                    for (i, server) in self.settings.servers.iter().enumerate() {
+                    for (i, server) in self.settings.servers.iter_mut().enumerate() {
                         ui.horizontal(|ui| {
                             let selected = self.settings.selected_server == i;
                             let label =
@@ -318,6 +326,31 @@ impl App {
                                     if ui.small_button("×").on_hover_text("Remove").clicked() {
                                         remove = Some(i);
                                     }
+                                    egui::ComboBox::from_id_salt(("version", i))
+                                        .selected_text(crate::versions::label(&server.version))
+                                        .width(150.0)
+                                        .show_ui(ui, |ui| {
+                                            let mut pick = |ui: &mut egui::Ui, id: &str| {
+                                                let on = server.version.trim() == id
+                                                    || (id == crate::versions::AUTO
+                                                        && crate::versions::find(&server.version).is_none());
+                                                if ui
+                                                    .selectable_label(on, crate::versions::label(id))
+                                                    .clicked()
+                                                {
+                                                    server.version = if id == crate::versions::AUTO {
+                                                        String::new()
+                                                    } else {
+                                                        id.to_owned()
+                                                    };
+                                                    changed = true;
+                                                }
+                                            };
+                                            pick(ui, crate::versions::AUTO);
+                                            for v in crate::versions::VERSIONS {
+                                                pick(ui, v.id);
+                                            }
+                                        });
                                 },
                             );
                         });
@@ -513,6 +546,24 @@ impl App {
                         &mut self.settings.prism_accounts_path,
                     );
                 });
+            ui.separator();
+            ui.horizontal(|ui| {
+                changed |= ui
+                    .checkbox(&mut self.settings.check_updates, "Check for updates at start")
+                    .on_hover_text("Asks GitHub's public release list; nothing is installed automatically.")
+                    .changed();
+                let channel = crate::update::Channel::parse(&self.settings.update_channel);
+                egui::ComboBox::from_id_salt("channel")
+                    .selected_text(channel.name())
+                    .show_ui(ui, |ui| {
+                        for c in [crate::update::Channel::Stable, crate::update::Channel::Nightly] {
+                            if ui.selectable_label(channel == c, c.name()).clicked() {
+                                self.settings.update_channel = c.name().to_owned();
+                                changed = true;
+                            }
+                        }
+                    });
+            });
         });
         if changed {
             self.save();
