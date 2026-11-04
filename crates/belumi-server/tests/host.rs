@@ -164,8 +164,12 @@ fn command_levels_gate_plugin_commands() {
     )
     .unwrap();
     assert_eq!(m.try_command("u", 0, "/open"), CommandOutcome::Ran);
+    assert_eq!(m.sync().len(), 1, "the plugin broadcast once");
     assert_eq!(m.try_command("u", 2, "/admin"), CommandOutcome::Denied);
-    assert_eq!(m.sync().len(), 1, "the denied command never reached the plugin");
+    assert!(
+        matches!(&m.sync()[..], [belumi_server::Action::Message { uuid, .. }] if uuid == "u"),
+        "only the player was told; the plugin never ran"
+    );
     assert_eq!(m.try_command("u", 3, "/admin"), CommandOutcome::Ran);
 }
 
