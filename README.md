@@ -22,6 +22,8 @@ Mojang's approval of its application; until then it can reuse an account from Pr
 - `crates/belumi-protocol-compat`: protocol version detection and compatibility helpers
 - `crates/belumi-core`: configuration, logging and paths
 - `crates/belumi-server`, `crates/belumi-plugin-api`, `crates/belumi-plugin-sdk`: WASM plugin framework for servers
+- `crates/belumi-client-plugins`, `belumi-client-plugin-api`, `belumi-client-plugin-sdk`: WASM plugins for the client
+- `crates/belumi-voice`: Simple Voice Chat compatible voice chat
 - `vendor/horizon`: the Horizon fork with Belumi's client changes (git submodule)
 
 ## Building
@@ -41,7 +43,10 @@ The game needs prepared Minecraft resources from your own installation; see [doc
 - [Development](docs/DEVELOPMENT.md)
 - [Launcher](docs/launcher.md)
 - [Minecraft 26.2 vs 26.3 on the wire](docs/wire-differences-26.2.md)
+- [Client features](docs/client-features.md): HUD, zoom, maps, waypoints, freecam, inspector, effects
+- [Client plugins](docs/client-plugins.md), [Voice chat](docs/voice-chat.md), [Screen effects](docs/effects.md)
 - [Server plugins](docs/server-plugins.md)
+- [Releases and updates](docs/releases.md)
 - [Architecture](docs/ARCHITECTURE.md), [Roadmap](docs/ROADMAP.md), [Decisions](docs/DECISIONS.md)
 
 ## License
