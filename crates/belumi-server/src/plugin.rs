@@ -99,6 +99,29 @@ impl Plugin {
         )?;
         linker.func_wrap(
             "belumi",
+            "players",
+            |mut c: wasmtime::Caller<'_, HostState>, ptr: i32, cap: i32| -> i32 {
+                let json = c.data().shared.roster();
+                let Ok(need) = i32::try_from(json.len()) else {
+                    return -1;
+                };
+                if need > cap {
+                    return need;
+                }
+                let Some(mem) = c.get_export("memory").and_then(|e| e.into_memory()) else {
+                    return -1;
+                };
+                let Ok(start) = usize::try_from(ptr) else {
+                    return -1;
+                };
+                if mem.write(&mut c, start, json.as_bytes()).is_err() {
+                    return -1;
+                }
+                need
+            },
+        )?;
+        linker.func_wrap(
+            "belumi",
             "broadcast",
             |mut c: wasmtime::Caller<'_, HostState>, ptr: i32, len: i32| -> i32 {
                 let Some(text) = host_str(&mut c, ptr, len) else {

@@ -9,6 +9,8 @@ pub enum ManifestError {
     BadName(String),
     #[error("command name {0:?} must be 1-32 chars of a-z, 0-9, '-' or '_'")]
     BadCommand(String),
+    #[error("command_levels entry {0:?} is not a declared command or its level is above 4")]
+    BadCommandLevel(String),
     #[error("plugin built for ABI {found}, server speaks ABI {expected}")]
     AbiMismatch { found: u32, expected: u32 },
 }
@@ -39,6 +41,9 @@ pub struct PluginManifest {
     pub permissions: Vec<Permission>,
     #[serde(default)]
     pub commands: Vec<String>,
+    /// Minimum operator level (0-4) per command; commands not listed need 0.
+    #[serde(default)]
+    pub command_levels: std::collections::BTreeMap<String, u8>,
 }
 
 fn default_main() -> String {
@@ -60,6 +65,13 @@ impl PluginManifest {
         }
         if let Some(bad) = m.commands.iter().find(|c| !valid_name(c)) {
             return Err(ManifestError::BadCommand(bad.clone()));
+        }
+        if let Some((bad, _)) = m
+            .command_levels
+            .iter()
+            .find(|(c, l)| **l > 4 || !m.commands.contains(c))
+        {
+            return Err(ManifestError::BadCommandLevel(bad.clone()));
         }
         if m.api_version != ABI_VERSION {
             return Err(ManifestError::AbiMismatch {
@@ -104,6 +116,15 @@ mod tests {
             PluginManifest::parse("name='ok'\nversion='1'\napi_version=1\ncommands=['hello']\n")
                 .unwrap();
         assert_eq!(m.commands, vec!["hello"]);
+    }
+
+    #[test]
+    fn command_levels_are_validated() {
+        let base = "name='ok'\nversion='1'\napi_version=1\ncommands=['a']\n";
+        let m = PluginManifest::parse(&format!("{base}[command_levels]\na=2\n")).unwrap();
+        assert_eq!(m.command_levels["a"], 2);
+        assert!(PluginManifest::parse(&format!("{base}[command_levels]\na=5\n")).is_err());
+        assert!(PluginManifest::parse(&format!("{base}[command_levels]\nb=1\n")).is_err());
     }
 
     #[test]

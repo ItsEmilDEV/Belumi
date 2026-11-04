@@ -50,7 +50,8 @@ arbeitet die Queue zu Beginn jedes Ticks ab (max. 1024 Einträge, Überlauf wird
 | `broadcast(ptr, len)` | 0 ok, 1 verweigert, 2 Queue voll, -1 ungültiger Speicher | `messaging` |
 | `send_message(uuid_ptr, uuid_len, ptr, len)` | wie oben | `messaging` |
 | `kick(uuid_ptr, uuid_len, reason_ptr, reason_len)` | wie oben | `kick` |
-| `player_count() -> i32` | Spielerzahl vom letzten Tick | – |
+| `player_count() -> i32` | Spielerzahl (aktualisiert bei Join/Quit) | – |
+| `players(ptr, cap) -> i32` | schreibt `[{"uuid","name"}]` als JSON in den Puffer; Rückgabe = nötige Länge (größer als `cap`: nichts geschrieben, mit größerem Puffer wiederholen), -1 Fehler | – |
 | `log(level, ptr, len)` | – | – |
 
 Berechtigungen stehen im Manifest (`permissions = ["messaging", "kick"]`).
@@ -72,7 +73,23 @@ Der Server meldet sich im Brand-Paket als `Belumi` (F3 zeigt `"Belumi" server`).
 
 `commands = ["hello"]` im Manifest. Der Server nimmt sie als `/hello [args]` in den Command-Tree auf (ein
 greedy-Textargument, also mit Tab-Vervollständigung des Namens), und `Event::PluginCommand` geht nur an das
-besitzende Plugin. Ein Plugin-Befehl gewinnt gegen einen eingebauten gleichen Namens. Berechtigungsstufen pro Befehl gibt es noch nicht.
+besitzende Plugin. Ein Plugin-Befehl gewinnt gegen einen eingebauten gleichen Namens.
+
+**Berechtigungsstufen:** `[command_levels]` im Manifest setzt die Mindest-Operatorstufe (0–4) je Befehl, Standard 0:
+
+```toml
+commands = ["hello", "ban"]
+[command_levels]
+ban = 3
+```
+
+Zu niedrige Stufe: der Spieler bekommt „You do not have permission…“, das Plugin sieht nichts. Das Manifest wird beim Laden
+geprüft (unbekannter Befehl oder Stufe über 4 = Fehler).
+
+**Reload:** `/belumi reload` (Stufe 4) schickt `server_stop` an alle Plugins, liest `plugins/` neu und schickt `server_start`.
+
+**Events:** `server_start`, `server_stop`, `tick`, `player_join`, `player_quit`, `chat` (abbrechbar), `command` (abbrechbar),
+`block_break` (abbrechbar), `use_block` (Rechtsklick auf einen Block, abbrechbar; Position, Seite 0–5, Hand), `player_death`, `plugin_command`.
 
 ## Profiler und Performance
 
@@ -106,5 +123,5 @@ Chunk-Paketbau auf Worker-Threads, Autosave in Scheiben, Paket-Batching.
 
 ## Offen
 
-- Berechtigungsstufen pro Plugin-Befehl, Spielerliste als Host-Import, Plugin-Reload zur Laufzeit.
-- Kick, Chat-Abbruch und BlockBreak-Abbruch sind nur im Host-Test geprüft, nicht live mit einem Spielerclient.
+- Plugin-Hooks für Blockplatzieren als eigenes Event, Respawn und Weltwechsel (`use_block` deckt Platzieren und Benutzen ab).
+- Performance: siehe Abschnitt Profiler und Performance.

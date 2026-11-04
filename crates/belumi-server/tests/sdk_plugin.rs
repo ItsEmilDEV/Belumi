@@ -16,21 +16,21 @@ fn hello_plugin_built_with_the_sdk() {
     let mut m = PluginManager::new().unwrap();
     m.load_bytes(manifest, &wasm).unwrap();
 
-    assert!(m.sync(3).is_empty());
+    assert!(m.sync().is_empty());
     m.emit(&Event::PlayerJoin {
         uuid: "u-1".into(),
         name: "Alex".into(),
     });
     assert_eq!(
-        m.sync(3),
+        m.sync(),
         vec![Action::Message {
             uuid: "u-1".into(),
             text: "Welcome, Alex!".into()
         }]
     );
 
-    assert!(m.try_command("u-1", "/hello a b"));
-    let acts = m.sync(3);
+    assert_eq!(m.try_command("u-1", 0, "/hello a b"), belumi_server::CommandOutcome::Ran);
+    let acts = m.sync();
     assert_eq!(acts.len(), 1);
     assert!(
         matches!(&acts[0], Action::Message { text, .. } if text == "Hello from a Belumi plugin! args=\"a b\" joins=1"),

@@ -23,6 +23,7 @@ pub mod host {
         fn send_message(up: *const u8, ul: i32, tp: *const u8, tl: i32) -> i32;
         fn kick(up: *const u8, ul: i32, rp: *const u8, rl: i32) -> i32;
         fn player_count() -> i32;
+        fn players(ptr: *mut u8, cap: i32) -> i32;
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -39,6 +40,9 @@ pub mod host {
         }
         pub unsafe fn player_count() -> i32 {
             0
+        }
+        pub unsafe fn players(_: *mut u8, _: i32) -> i32 {
+            2
         }
     }
     #[cfg(not(target_arch = "wasm32"))]
@@ -84,6 +88,32 @@ pub mod host {
 
     pub fn online_players() -> i32 {
         unsafe { player_count() }
+    }
+
+    /// An online player.
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+    pub struct Player {
+        pub uuid: String,
+        pub name: String,
+    }
+
+    /// Everyone online right now (as of the start of this tick).
+    pub fn player_list() -> Vec<Player> {
+        let mut buf = vec![0u8; 1024];
+        loop {
+            let n = unsafe { players(buf.as_mut_ptr(), len_u8(&buf)) };
+            let Ok(n) = usize::try_from(n) else {
+                return Vec::new();
+            };
+            if n <= buf.len() {
+                return serde_json::from_slice(&buf[..n]).unwrap_or_default();
+            }
+            buf.resize(n, 0);
+        }
+    }
+
+    fn len_u8(b: &[u8]) -> i32 {
+        i32::try_from(b.len()).unwrap_or(i32::MAX)
     }
 }
 

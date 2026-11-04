@@ -11,6 +11,8 @@ pub enum EventKind {
     Chat,
     Command,
     BlockBreak,
+    PlayerDeath,
+    UseBlock,
     PluginCommand,
 }
 
@@ -45,6 +47,24 @@ pub enum Event {
         y: i32,
         z: i32,
     },
+    PlayerDeath {
+        uuid: String,
+        dimension: String,
+        x: i32,
+        y: i32,
+        z: i32,
+    },
+    /// A right-click on a block: placing a block or using it (door, lever, chest).
+    UseBlock {
+        uuid: String,
+        dimension: String,
+        x: i32,
+        y: i32,
+        z: i32,
+        /// 0 down, 1 up, 2 north, 3 south, 4 west, 5 east.
+        face: u8,
+        off_hand: bool,
+    },
     PluginCommand {
         uuid: String,
         name: String,
@@ -63,6 +83,8 @@ impl Event {
             Event::Chat { .. } => EventKind::Chat,
             Event::Command { .. } => EventKind::Command,
             Event::BlockBreak { .. } => EventKind::BlockBreak,
+            Event::PlayerDeath { .. } => EventKind::PlayerDeath,
+            Event::UseBlock { .. } => EventKind::UseBlock,
             Event::PluginCommand { .. } => EventKind::PluginCommand,
         }
     }
@@ -70,7 +92,7 @@ impl Event {
     pub fn cancellable(&self) -> bool {
         matches!(
             self.kind(),
-            EventKind::Chat | EventKind::Command | EventKind::BlockBreak
+            EventKind::Chat | EventKind::Command | EventKind::BlockBreak | EventKind::UseBlock
         )
     }
 }

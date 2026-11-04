@@ -1,5 +1,5 @@
 use belumi_plugin_api::{Event, EventResult, PluginManifest};
-use belumi_server::PluginManager;
+use belumi_server::{CommandOutcome, PluginManager};
 
 fn manifest(name: &str, extra: &str) -> PluginManifest {
     PluginManifest::parse(&format!(
@@ -118,14 +118,15 @@ fn host_calls_respect_permissions() {
         &wat::parse_str(ACTIONS).unwrap(),
     )
     .unwrap();
-    assert!(m.sync(7).is_empty());
+    m.set_roster(&roster(7));
+    assert!(m.sync().is_empty());
     assert_eq!(
         m.emit(&chat()),
         EventResult::Cancel,
-        "player_count reads what sync published"
+        "player_count reads the roster"
     );
-    assert_eq!(m.sync(7), vec![Action::Broadcast("hi".into())]);
-    assert!(m.sync(7).is_empty());
+    assert_eq!(m.sync(), vec![Action::Broadcast("hi".into())]);
+    assert!(m.sync().is_empty());
 }
 
 #[test]
@@ -137,12 +138,91 @@ fn plugin_commands_go_to_their_owner_only() {
     )
     .unwrap();
     assert_eq!(m.command_names(), vec!["hello"]);
-    assert!(!m.try_command("u", "/other"));
-    assert!(m.sync(0).is_empty());
-    assert!(m.try_command("u", "/Hello world"));
+    assert_eq!(m.try_command("u", 0, "/other"), CommandOutcome::NotPlugin);
+    assert!(m.sync().is_empty());
+    assert_eq!(m.try_command("u", 0, "/Hello world"), CommandOutcome::Ran);
     assert_eq!(
-        m.sync(0),
+        m.sync(),
         vec![belumi_server::Action::Broadcast("hi".into())],
         "the command handler ran"
     );
+}
+
+fn roster(n: usize) -> Vec<(String, String)> {
+    (0..n).map(|i| (format!("u{i}"), format!("P{i}"))).collect()
+}
+
+#[test]
+fn command_levels_gate_plugin_commands() {
+    let mut m = PluginManager::new().unwrap();
+    m.load_bytes(
+        manifest(
+            "a",
+            "commands=['open','admin']\npermissions=['messaging']\n[command_levels]\nadmin=3",
+        ),
+        &wat::parse_str(ACTIONS).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(m.try_command("u", 0, "/open"), CommandOutcome::Ran);
+    assert_eq!(m.try_command("u", 2, "/admin"), CommandOutcome::Denied);
+    assert_eq!(m.sync().len(), 1, "the denied command never reached the plugin");
+    assert_eq!(m.try_command("u", 3, "/admin"), CommandOutcome::Ran);
+}
+
+/// `players` fills a buffer with the roster JSON and returns its length; a
+/// too small buffer gets nothing written and the needed size back.
+const ROSTER: &str = r#"(module
+  (import "belumi" "players" (func $players (param i32 i32) (result i32)))
+  (import "belumi" "broadcast" (func $broadcast (param i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (func (export "belumi_alloc") (param i32) (result i32) (i32.const 0))
+  (func (export "belumi_on_event") (param i32 i32) (result i32)
+    (local $n i32)
+    (local.set $n (call $players (i32.const 1024) (i32.const 4096)))
+    (drop (call $broadcast (i32.const 1024) (local.get $n)))
+    (i32.const 0)))"#;
+
+#[test]
+fn players_import_lists_the_roster() {
+    let mut m = PluginManager::new().unwrap();
+    m.load_bytes(
+        manifest("a", "subscribe=['chat']\npermissions=['messaging']"),
+        &wat::parse_str(ROSTER).unwrap(),
+    )
+    .unwrap();
+    m.set_roster(&roster(2));
+    m.emit(&chat());
+    match &m.sync()[..] {
+        [belumi_server::Action::Broadcast(json)] => {
+            let v: serde_json::Value = serde_json::from_str(json).unwrap();
+            assert_eq!(v[1]["name"], "P1");
+            assert_eq!(v[0]["uuid"], "u0");
+        }
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn reload_picks_up_changed_plugins() {
+    let dir = tempfile::tempdir().unwrap();
+    let write = |wat: &str| {
+        let f = dir.path().join("p");
+        std::fs::create_dir_all(&f).unwrap();
+        std::fs::write(
+            f.join("plugin.toml"),
+            "name='p'\nversion='1'\napi_version=1\ncommands=['x']\npermissions=['messaging']\n",
+        )
+        .unwrap();
+        std::fs::write(f.join("plugin.wasm"), wat::parse_str(wat).unwrap()).unwrap();
+    };
+    write(ACTIONS);
+    let mut m = PluginManager::new().unwrap();
+    assert_eq!(m.load_dir(dir.path()).unwrap(), 1);
+    m.try_command("u", 0, "/x");
+    assert_eq!(m.sync().len(), 1);
+    write(ROSTER);
+    assert_eq!(m.reload().unwrap(), 1);
+    m.set_roster(&roster(1));
+    m.try_command("u", 0, "/x");
+    assert_eq!(m.sync().len(), 1, "the new plugin answers");
 }

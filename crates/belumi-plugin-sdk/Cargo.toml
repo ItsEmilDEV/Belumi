@@ -8,6 +8,7 @@ description = "Write Belumi server plugins in Rust (compile to wasm32-unknown-un
 
 [dependencies]
 belumi-plugin-api = { path = "../belumi-plugin-api" }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 [lints]
