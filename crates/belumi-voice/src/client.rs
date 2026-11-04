@@ -382,7 +382,7 @@ fn play(shared: &Shared, channels: &mut HashMap<Uuid, Channel>, sound: &Sound) {
             };
             channels.entry(id).or_insert(Channel {
                 decoder,
-                last_sequence: sound.sequence() - 1,
+                last_sequence: sound.sequence().saturating_sub(1),
                 last_heard: Instant::now(),
             })
         }
@@ -390,7 +390,7 @@ fn play(shared: &Shared, channels: &mut HashMap<Uuid, Channel>, sound: &Sound) {
     if sound.sequence() <= ch.last_sequence {
         return;
     }
-    let gap = sound.sequence() - ch.last_sequence - 1;
+    let gap = sound.sequence().saturating_sub(ch.last_sequence).saturating_sub(1);
     if (1..=3).contains(&gap) {
         for _ in 0..gap {
             if let Ok(f) = ch.decoder.conceal_loss() {

@@ -13,7 +13,8 @@ install -m755 "$here/bin/belumi-launcher" "$prefix/bin/belumi-launcher"
 install -m755 "$here/bin/horizon-client" "$prefix/bin/horizon-client"
 install -m644 "$here/share/icons/hicolor/512x512/apps/belumi.png" "$prefix/share/icons/hicolor/512x512/apps/belumi.png"
 for entry in belumi-launcher belumi; do
-  sed "s|^Exec=.*|Exec=$prefix/bin/$([ "$entry" = belumi ] && echo horizon-client || echo belumi-launcher)|" \
+  exe="$prefix/bin/$([ "$entry" = belumi ] && echo horizon-client || echo belumi-launcher)"
+  awk -v exe="$exe" '/^Exec=/ { print "Exec=" exe; next } { print }' \
     "$here/share/applications/$entry.desktop" > "$prefix/share/applications/$entry.desktop"
 done
 command -v update-desktop-database >/dev/null && update-desktop-database "$prefix/share/applications" 2>/dev/null || true

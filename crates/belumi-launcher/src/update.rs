@@ -49,6 +49,7 @@ struct Version {
 
 fn parse_version(s: &str) -> Option<Version> {
     let s = s.trim().trim_start_matches('v');
+    let s = s.split_once('+').map_or(s, |(v, _)| v);
     let (core, pre) = match s.split_once('-') {
         Some((c, p)) => (c, Some(p.to_owned())),
         None => (s, None),
