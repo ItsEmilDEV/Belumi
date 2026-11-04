@@ -1,0 +1,17 @@
+[package]
+name = "hello-client-plugin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Example Belumi client plugin: a HUD counter and /hello"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+belumi-client-plugin-sdk = { path = "../../crates/belumi-client-plugin-sdk" }
+
+[lints]
+workspace = true

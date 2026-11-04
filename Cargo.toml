@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/belumi-core", "crates/belumi-protocol-compat", "crates/belumi-launcher", "crates/belumi-plugin-api", "crates/belumi-server", "crates/belumi-plugin-sdk", "examples/hello-plugin"]
+members = ["crates/belumi-core", "crates/belumi-protocol-compat", "crates/belumi-launcher", "crates/belumi-plugin-api", "crates/belumi-server", "crates/belumi-plugin-sdk", "examples/hello-plugin", "crates/belumi-client-plugin-api", "crates/belumi-client-plugins", "crates/belumi-client-plugin-sdk", "examples/hello-client-plugin"]
 resolver = "2"
 
 [workspace.package]

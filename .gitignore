@@ -6,3 +6,6 @@
 options.txt
 servers.dat
 command_history.txt
+/tools/.horizon-cache/
+/tools/assets/
+/tools/horizon_official_server.txt

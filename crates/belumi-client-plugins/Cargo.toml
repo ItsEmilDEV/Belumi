@@ -1,0 +1,21 @@
+[package]
+name = "belumi-client-plugins"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Belumi client WebAssembly plugin host (docs/client-plugins.md)"
+
+[dependencies]
+belumi-client-plugin-api = { path = "../belumi-client-plugin-api" }
+wasmtime = { version = "36", default-features = false, features = ["runtime", "cranelift", "std"] }
+serde_json = "1"
+thiserror = "2"
+log = "0.4"
+
+[dev-dependencies]
+wat = "1"
+tempfile = "3"
+
+[lints]
+workspace = true

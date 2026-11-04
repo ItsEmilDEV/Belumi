@@ -1,0 +1,7 @@
+name = "hello-client"
+version = "0.1.0"
+api_version = 1
+description = "A HUD tick counter, a key press counter and /hello"
+permissions = ["chat", "hud"]
+subscribe = ["tick", "key"]
+commands = ["hello"]
