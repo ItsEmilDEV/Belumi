@@ -110,8 +110,33 @@ ohne Messung nicht. Umgesetzt:
   Standard 1 = Vanilla. 20 Bots, gleicher Lauf: Ø Tick 11,6 ms (N=1), 7,8 ms (N=2), 5,2 ms (N=4). Die Spawnrate sinkt um denselben
   Faktor, der 400-Tick-Tierdurchlauf läuft immer. Die Läufe sind nicht identisch, weil weniger Spawns auch weniger Mobs bedeuten.
 
-Weitere Kandidaten, erst nach Messung mit echter Last (mehr Spieler, Bewegung, Redstone): Aktivitätsradien für Mobs weit vom Spieler,
-Chunk-Paketbau auf Worker-Threads, Autosave in Scheiben, Paket-Batching.
+### Zweite Messrunde: realistische Last
+
+40 wandernde Bots (`explore`/`walk`), normale Welt, View-Distance 10, Simulation 8, Fast-Profil. Der Tick wächst mit den geladenen
+Chunks und Mobs von 7 ms auf über 50 ms nach etwa 40 s. Neue Spans (nur aktiv mit `BELUMI_PROFILE`) zeigen, wo die Zeit liegt
+(Mittel am Ende des Laufs, schwankt mit der Maschinenlast um ±15 %):
+
+| Span | ms/Tick | Anteil |
+|---|---|---|
+| `creatures.entities` (davon `ent.mob_tick` ca. 60 %, `ent.setup` ca. 8 %) | 12–16 | ca. 35 % |
+| `tick_lan` (`hub.tick_level`, `lan.entities`, `lan_chunks`) | 6–9 | ca. 20 % |
+| `tick_blocks` (`blocks.scheduled` ca. 4, `blocks.random` ca. 3) | 7–9 | ca. 20 % |
+| `streaming` (Chunk-Eingang und Licht; Spitzen bis 30 ms) | 7–9 | ca. 20 % |
+| `spawn.attempts` | 3–5 | ca. 10 % |
+
+Gefunden und behoben (Verhalten unverändert, Tests grün):
+
+- `species::def` suchte linear durch alle Arten, `is_spawn_position_ok` baute pro Versuch einen `format!`-String. Beides läuft rund
+  10 000-mal pro Tick (20 Bots, Flachwelt). Jetzt Index-Tabelle und einmal gebaute IDs. `pos_ok` im Spawn-Pfad: minus 60 %, der Tick
+  insgesamt minus 5 %, in der ganzen Mob-Logik wirkt `def` zusätzlich.
+
+Bewusst nicht gebaut (Entscheidung „gameplay-neutral“): Aktivierungsradien und Spawn-Raten wie bei Paper/Purpur. Der Vanilla-Algorithmus
+ist im Horizon-Code schon sorgfältig optimiert (Gitter für Mob-Boxen, Nearest-Cache). Ein Vergleich mit Paper/Purpur auf derselben Last
+steht aus; ohne ihn behaupte ich keinen Faktor.
+
+Methodik-Hinweis: `gdb`-Sampling per Signal taugt hier nicht (der Haupt-Thread wird fast nur im Schlaf unterbrochen), die Spans sind
+die belastbare Quelle. Kandidaten als Nächstes: `ent.mob_tick` pro Art aufschlüsseln, `blocks.scheduled` (Flüssigkeiten in frischen
+Chunks), Licht-Anwendung im Streaming auf Worker verschieben, Autosave in Scheiben.
 
 ## Phasen
 

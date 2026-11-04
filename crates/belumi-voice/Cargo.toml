@@ -1,0 +1,17 @@
+[package]
+name = "belumi-voice"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Belumi voice chat client, wire-compatible with Simple Voice Chat servers (docs/voice-chat.md)"
+
+[dependencies]
+aes-gcm = "0.10"
+opus = "0.3"
+cpal = "0.16"
+thiserror = "2"
+log = "0.4"
+
+[lints]
+workspace = true
