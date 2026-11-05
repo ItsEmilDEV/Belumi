@@ -77,8 +77,22 @@ pub fn launch(
     target: &Target,
     log: Option<std::fs::File>,
 ) -> Result<Child, String> {
+    launch_with(settings, account, target, log, &[], &[])
+}
+
+/// `launch` with more arguments and environment variables (the diagnose run's).
+pub fn launch_with(
+    settings: &Settings,
+    account: Option<&Account>,
+    target: &Target,
+    log: Option<std::fs::File>,
+    extra_args: &[String],
+    extra_env: &[(&str, &str)],
+) -> Result<Child, String> {
     let mut command = Command::new(&settings.client_binary);
     command.args(arguments(settings, account.is_some(), target));
+    command.args(extra_args);
+    command.envs(extra_env.iter().copied());
     match settings.graphics_api.as_str() {
         "vulkan" => {
             command.env("WGPU_BACKEND", "vulkan");

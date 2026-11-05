@@ -579,6 +579,12 @@ impl App {
                 if action(ui, Kind::Ghost, Some(Icon::Folder), &tr("Open folder"), true, vec2(0.0, 28.0)).clicked() {
                     crate::os::open(self.log_path.parent().unwrap_or(&self.log_path));
                 }
+                if action(ui, Kind::Ghost, Some(Icon::Shield), &tr("Run diagnose"), !self.diagnosing && !self.playing, vec2(0.0, 28.0))
+                    .on_hover_text(tr("Runs benchmarks and screenshots in a scratch folder and collects a report to send for support."))
+                    .clicked()
+                {
+                    self.start_diagnose();
+                }
                 if action(ui, Kind::Ghost, None, &tr("Copy"), !self.log_text.is_empty(), vec2(0.0, 28.0)).clicked() {
                     ui.ctx().copy_text(self.log_text.clone());
                     self.status = tr("Log copied.");

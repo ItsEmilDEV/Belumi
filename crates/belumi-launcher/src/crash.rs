@@ -62,8 +62,15 @@ pub fn pack_for_support(log: &Path, report: Option<&Path>, out: &Path) -> std::i
 }
 
 /// Drop what could identify the player: the home folder in paths and anything shaped like a token.
-fn redact(bytes: Vec<u8>) -> Vec<u8> {
+pub(crate) fn redact(bytes: Vec<u8>) -> Vec<u8> {
     let mut text = String::from_utf8_lossy(&bytes).into_owned();
+    for var in ["USER", "USERNAME", "LOGNAME"] {
+        if let Ok(user) = std::env::var(var)
+            && user.len() > 2
+        {
+            text = text.replace(&user, "user");
+        }
+    }
     if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
         let home = home.to_string_lossy().into_owned();
         if home.len() > 3 {
@@ -82,6 +89,27 @@ fn redact(bytes: Vec<u8>) -> Vec<u8> {
         }
     }
     out.into_bytes()
+}
+
+/// A ZIP of a folder (its files and subfolders, stored).
+pub fn pack_dir(dir: &Path, out: &Path) -> std::io::Result<()> {
+    fn walk(base: &Path, at: &Path, zip: &mut Zip<std::fs::File>) -> std::io::Result<()> {
+        let mut entries: Vec<_> = std::fs::read_dir(at)?.flatten().collect();
+        entries.sort_by_key(|e| e.file_name());
+        for entry in entries {
+            let path = entry.path();
+            if path.is_dir() {
+                walk(base, &path, zip)?;
+            } else if path != base.join("belumi-report.zip") {
+                let name = path.strip_prefix(base).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+                zip.add(&name, &std::fs::read(&path)?)?;
+            }
+        }
+        Ok(())
+    }
+    let mut zip = Zip::new(std::fs::File::create(out)?);
+    walk(dir, dir, &mut zip)?;
+    zip.finish()
 }
 
 /// A minimal stored (uncompressed) ZIP writer: enough for a few log files.

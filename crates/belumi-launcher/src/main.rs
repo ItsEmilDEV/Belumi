@@ -4,6 +4,7 @@ mod auth;
 mod cli;
 mod check;
 mod crash;
+mod diagnose;
 mod fonts;
 mod game;
 mod heads;
@@ -39,6 +40,7 @@ enum Event {
     Started,
     Exited(String, Option<i32>),
     Probed(String, Option<status::ServerStatus>),
+    Diagnosed(Result<std::path::PathBuf, String>),
     Update(Option<update::Release>),
     Head(String, Option<Vec<u8>>),
 }
@@ -93,6 +95,7 @@ struct App {
     window_cmd: Option<egui::ViewportCommand>,
     play_list: usize,
     add_server: bool,
+    diagnosing: bool,
 }
 
 impl App {
@@ -154,6 +157,7 @@ impl App {
             window_cmd: None,
             play_list: 0,
             add_server: false,
+            diagnosing: false,
         };
         app.check_for_update();
         if app.settings.active_saved().is_some() && !app.settings.client_id.trim().is_empty() {
@@ -437,6 +441,27 @@ impl App {
         }
     }
 
+    fn start_diagnose(&mut self) {
+        if self.diagnosing || self.playing {
+            return;
+        }
+        self.diagnosing = true;
+        self.status = i18n::tr("Diagnose is running; the game opens a few times.");
+        let (settings, account, tx) = (self.settings.clone(), self.account.clone(), self.tx.clone());
+        let out = BelumiPaths::new().data_dir().join("belumi-report");
+        std::thread::spawn(move || {
+            let _ = std::fs::remove_dir_all(&out);
+            let server = cli::diagnose_server();
+            let progress = |line: &str| {
+                let _ = tx.send(Event::Status(line.to_owned()));
+            };
+            let result = diagnose::run(&settings, account.as_ref(), server.as_deref(), &out, &progress)
+                .map(|_| out.clone())
+                .map_err(|e| e.to_string());
+            let _ = tx.send(Event::Diagnosed(result));
+        });
+    }
+
     fn probe_servers(&mut self) {
         let due: Vec<String> = self
             .settings
@@ -520,6 +545,16 @@ impl App {
                     if self.crash.is_some() {
                         self.status = i18n::tr("The game stopped unexpectedly.");
                     }
+                }
+                Event::Diagnosed(result) => {
+                    self.diagnosing = false;
+                    self.status = match result {
+                        Ok(dir) => {
+                            os::open(&dir);
+                            i18n::trf("Report ready: {}", &[&dir.display().to_string()])
+                        }
+                        Err(e) => e,
+                    };
                 }
                 Event::Probed(address, found) => {
                     let probe = found.map_or(status::Probe::Down, status::Probe::Up);

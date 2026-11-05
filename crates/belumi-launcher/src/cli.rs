@@ -5,6 +5,7 @@ use crate::{prism, secret};
 use belumi_core::paths::BelumiPaths;
 
 pub const USAGE: &str = "Usage: belumi-launcher --play [--offline] [--server HOST[:PORT] | --world NAME | --main-menu]\n\
+       belumi-launcher --diagnose [--offline] [--server HOST[:PORT]] [--out FOLDER]   (benchmarks, screenshots, logs into a report folder)\n\
 Starts the game without opening the launcher window, with the saved account (renewed first).\n\
   --offline     play with the offline name instead of an account\n\
   --server X    join this address (default: the server selected in the launcher)\n\
@@ -17,20 +18,32 @@ pub struct Request {
     pub target: Target,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum Command {
+    Play(Request),
+    Diagnose { offline: bool, server: Option<String>, out: Option<std::path::PathBuf> },
+}
+
 /// `Ok(None)` when the arguments do not ask for a headless start.
-pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Request>, String> {
+pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Command>, String> {
     let mut args = args.into_iter().peekable();
     if args.peek().is_none() {
         return Ok(None);
     }
     let (mut play, mut offline, mut target) = (false, false, Target::Server);
+    let (mut diagnose, mut out) = (false, None);
+    let mut server_arg: Option<String> = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--play" => play = true,
+            "--diagnose" => diagnose = true,
+            "--out" => out = Some(std::path::PathBuf::from(args.next().ok_or("--out needs a folder")?)),
             "--offline" => offline = true,
             "--main-menu" => target = Target::MainMenu,
             "--server" => {
-                target = Target::Address(args.next().ok_or("--server needs an address")?);
+                let address = args.next().ok_or("--server needs an address")?;
+                server_arg = Some(address.clone());
+                target = Target::Address(address);
             }
             "--world" => {
                 target = Target::World(args.next().ok_or("--world needs a world name")?);
@@ -39,7 +52,10 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Request>, 
             other => return Err(format!("unknown option {other}")),
         }
     }
-    Ok(play.then_some(Request { offline, target }))
+    if diagnose {
+        return Ok(Some(Command::Diagnose { offline, server: server_arg, out }));
+    }
+    Ok(play.then_some(Command::Play(Request { offline, target })))
 }
 
 fn account_for(settings: &mut Settings, path: &std::path::Path) -> Result<auth::Account, String> {
@@ -82,9 +98,17 @@ fn account_for(settings: &mut Settings, path: &std::path::Path) -> Result<auth::
     Err("No signed-in account. Open the launcher once and sign in, or use --offline.".into())
 }
 
+/// The server a diagnose build visits: `diagnose-server.txt` beside the program.
+pub fn diagnose_server() -> Option<String> {
+    let exe = std::env::current_exe().ok()?;
+    let text = std::fs::read_to_string(exe.parent()?.join("diagnose-server.txt")).ok()?;
+    let line = text.lines().map(str::trim).find(|l| !l.is_empty() && !l.starts_with('#'))?;
+    Some(line.to_owned())
+}
+
 /// Runs a headless start; `None` means "open the window".
 pub fn run(args: impl IntoIterator<Item = String>) -> Option<i32> {
-    let request = match parse(args) {
+    let command = match parse(args) {
         Ok(Some(r)) => r,
         Ok(None) => return None,
         Err(message) => {
@@ -98,6 +122,26 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Option<i32> {
     let paths = BelumiPaths::new();
     let path = paths.config_dir().join("launcher.json");
     let mut settings = Settings::load(&path);
+    let request = match command {
+        Command::Play(request) => request,
+        Command::Diagnose { offline, server, out } => {
+            let account = if offline { None } else { account_for(&mut settings, &path).ok() };
+            let server = server.or_else(diagnose_server);
+            let out = out.unwrap_or_else(|| paths.data_dir().join("belumi-report"));
+            let _ = std::fs::remove_dir_all(&out);
+            return Some(match crate::diagnose::run(&settings, account.as_ref(), server.as_deref(), &out, &|line| println!("{line}")) {
+                Ok(zip) => {
+                    println!("Done. Send this folder (or the ZIP inside it): {}", out.display());
+                    println!("{}", zip.display());
+                    0
+                }
+                Err(e) => {
+                    eprintln!("belumi-launcher: {e}");
+                    1
+                }
+            });
+        }
+    };
     let account = if request.offline {
         None
     } else {
@@ -135,16 +179,28 @@ mod tests {
 
     #[test]
     fn a_play_request_names_its_target() {
-        assert_eq!(parse(args(&["--play"])), Ok(Some(Request { offline: false, target: Target::Server })));
+        assert_eq!(parse(args(&["--play"])), Ok(Some(Command::Play(Request { offline: false, target: Target::Server }))));
         assert_eq!(
             parse(args(&["--play", "--offline", "--world", "My World"])),
-            Ok(Some(Request { offline: true, target: Target::World("My World".into()) }))
+            Ok(Some(Command::Play(Request { offline: true, target: Target::World("My World".into()) })))
         );
         assert_eq!(
             parse(args(&["--play", "--server", "play.example.net"])),
-            Ok(Some(Request { offline: false, target: Target::Address("play.example.net".into()) }))
+            Ok(Some(Command::Play(Request { offline: false, target: Target::Address("play.example.net".into()) })))
         );
-        assert_eq!(parse(args(&["--play", "--main-menu"])).unwrap().unwrap().target, Target::MainMenu);
+        assert_eq!(parse(args(&["--play", "--main-menu"])), Ok(Some(Command::Play(Request { offline: false, target: Target::MainMenu }))));
+    }
+
+    #[test]
+    fn a_diagnose_request_takes_a_server_and_a_folder() {
+        assert_eq!(
+            parse(args(&["--diagnose", "--server", "play.example.net", "--out", "/tmp/r"])),
+            Ok(Some(Command::Diagnose { offline: false, server: Some("play.example.net".into()), out: Some("/tmp/r".into()) }))
+        );
+        assert_eq!(
+            parse(args(&["--diagnose", "--offline"])),
+            Ok(Some(Command::Diagnose { offline: true, server: None, out: None }))
+        );
     }
 
     #[test]
