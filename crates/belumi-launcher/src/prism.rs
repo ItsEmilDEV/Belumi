@@ -19,7 +19,12 @@ pub fn candidate_paths(custom: &str) -> Vec<PathBuf> {
         return vec![PathBuf::from(custom)];
     }
     let mut paths = Vec::new();
-    let home = std::env::var_os("HOME").map(PathBuf::from);
+    if let Some(appdata) = std::env::var_os("APPDATA").filter(|d| !d.is_empty()) {
+        let base = PathBuf::from(appdata);
+        paths.push(base.join("PrismLauncher").join("accounts.json"));
+        paths.push(base.join("PrismLauncher").join("Data").join("accounts.json"));
+    }
+    let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from);
     if let Some(data) = std::env::var_os("XDG_DATA_HOME").filter(|d| !d.is_empty()) {
         paths.push(PathBuf::from(data).join("PrismLauncher/accounts.json"));
     }

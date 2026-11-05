@@ -243,3 +243,23 @@ before the last sign-in step works. Never use another app's client ID.
 - `docs/launcher.md` - launcher behaviour and dev scripts.
 - `docs/server-plugins.md` - server plugin framework.
 - `docs/UPSTREAM.md` - Horizon architecture and integration notes.
+
+## Windows
+
+The launcher and the client are written to run on Windows 10 and 11 (x64). Build both with the MSVC toolchain
+(Visual Studio Build Tools, "Desktop development with C++") and Rust stable:
+
+```powershell
+cargo build --release -p belumi-launcher
+cd vendor\horizon; cargo build --release -p horizon-client --features belumi,belumi-plugins
+```
+
+`packaging\build-release.ps1` builds both, a portable zip and, with Inno Setup 6 installed, the installer
+(`packaging\belumi.iss`). CI builds and tests the launcher on `windows-latest`; the release workflow attaches the zip
+and the installer to the GitHub release. The files are not code-signed yet, so Windows SmartScreen asks once.
+
+What differs from Linux: the Microsoft sign-in is kept in the Windows Credential Manager (a token it refuses is kept
+in an owner-only file under `%APPDATA%\Belumi`), the browser opens through `rundll32`, the game folder defaults to
+the launcher's working directory, and the Vulkan check is skipped (the game falls back to DirectX 12). Voice chat
+needs the Opus library at build time (`belumi-voice`); the Windows release builds without the `belumi-voice` feature
+until the Opus build is wired into CI.

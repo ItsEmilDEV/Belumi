@@ -1,3 +1,5 @@
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+
 mod auth;
 mod cli;
 mod check;
@@ -236,9 +238,7 @@ impl App {
         std::thread::spawn(move || {
             let result = (|| {
                 let code = auth::start_device_code(&client_id)?;
-                let _ = std::process::Command::new("xdg-open")
-                    .arg(&code.verification_uri)
-                    .spawn();
+                os::open_url(&code.verification_uri);
                 let _ = tx.send(Event::Code(code.clone()));
                 let ms =
                     auth::wait_for_sign_in(&client_id, &code, &|| cancel.load(Ordering::Relaxed))?;

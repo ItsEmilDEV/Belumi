@@ -12,3 +12,14 @@ pub fn open(path: &Path) {
     };
     let _ = Command::new(program).arg(path).spawn();
 }
+
+/// Open a web address in the default browser.
+pub fn open_url(url: &str) {
+    let _ = if cfg!(windows) {
+        Command::new("rundll32").args(["url.dll,FileProtocolHandler", url]).spawn()
+    } else if cfg!(target_os = "macos") {
+        Command::new("open").arg(url).spawn()
+    } else {
+        Command::new("xdg-open").arg(url).spawn()
+    };
+}

@@ -38,3 +38,30 @@ jobs:
           flags=""
           case "$GITHUB_REF_NAME" in *-*) flags="--prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" $flags --generate-notes dist/*.tar.gz dist/*.sha256
+
+  windows:
+    name: Windows zip and installer
+    runs-on: windows-latest
+    needs: linux
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build the zip and the installer
+        shell: pwsh
+        env:
+          BELUMI_FEATURES: belumi,belumi-plugins
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          packaging/build-release.ps1 $version
+
+      - name: Add to the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.ref_name }}" (Get-ChildItem dist -File | Where-Object { $_.Name -match '\.(zip|exe|sha256)$' }).FullName --clobber

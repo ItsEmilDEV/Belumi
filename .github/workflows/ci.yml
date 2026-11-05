@@ -44,3 +44,28 @@ jobs:
 
       - name: Run tests
         run: cargo test -p belumi-core -p belumi-protocol-compat -p belumi-plugin-api
+  launcher-windows:
+    name: Launcher on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: windows-launcher-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build the launcher
+        run: cargo build -p belumi-launcher
+
+      - name: Test the launcher
+        run: cargo test -p belumi-launcher

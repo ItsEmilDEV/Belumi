@@ -60,16 +60,13 @@ pub struct Settings {
 
 fn installed_client() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
-    let client = exe.parent()?.join("horizon-client");
+    let client = exe.parent()?.join(format!("horizon-client{}", std::env::consts::EXE_SUFFIX));
     client.is_file().then_some(client)
 }
 
 fn installed_resources() -> Option<PathBuf> {
     installed_client()?;
-    let data = std::env::var_os("XDG_DATA_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))?;
-    Some(data.join("belumi/resources/26.3"))
+    Some(belumi_core::paths::BelumiPaths::new().data_dir().join("resources/26.3"))
 }
 
 impl Default for Settings {
@@ -95,7 +92,7 @@ impl Default for Settings {
             }],
             selected_server: 0,
             client_binary: installed_client()
-                .unwrap_or_else(|| horizon.join("target/fast/horizon-client"))
+                .unwrap_or_else(|| horizon.join(format!("target/fast/horizon-client{}", std::env::consts::EXE_SUFFIX)))
                 .display()
                 .to_string(),
             resources: installed_resources()
@@ -202,17 +199,18 @@ impl Settings {
 
     pub fn save(&self, path: &Path) -> std::io::Result<()> {
         use std::io::Write;
-        use std::os::unix::fs::OpenOptionsExt;
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir)?;
         }
         let temp = path.with_extension("json.tmp");
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(0o600)
-            .open(&temp)?;
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create(true).truncate(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let mut file = options.open(&temp)?;
         file.write_all(serde_json::to_string_pretty(self)?.as_bytes())?;
         file.sync_all()?;
         std::fs::rename(temp, path)
@@ -225,7 +223,6 @@ mod tests {
 
     #[test]
     fn round_trips_and_is_owner_only() {
-        use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("sub/launcher.json");
         let mut settings = Settings::default();
@@ -242,10 +239,14 @@ mod tests {
         });
         settings.save(&path).unwrap();
         assert_eq!(Settings::load(&path), settings);
-        assert_eq!(
-            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
-            0o600
-        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
     }
 
     #[test]

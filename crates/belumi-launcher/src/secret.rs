@@ -1,8 +1,11 @@
+#[cfg(not(windows))]
 use std::io::Write;
+#[cfg(not(windows))]
 use std::process::{Command, Stdio};
 
 const SERVICE: &str = "belumi-launcher";
 
+#[cfg(any(test, not(windows)))]
 fn attributes(account: &str) -> Vec<String> {
     vec![
         "service".into(),
@@ -12,6 +15,7 @@ fn attributes(account: &str) -> Vec<String> {
     ]
 }
 
+#[cfg(not(windows))]
 pub fn store(account: &str, token: &str) -> bool {
     let child = Command::new("secret-tool")
         .args(["store", "--label=Belumi sign-in"])
@@ -29,6 +33,7 @@ pub fn store(account: &str, token: &str) -> bool {
     child.wait().is_ok_and(|status| status.success())
 }
 
+#[cfg(not(windows))]
 pub fn lookup(account: &str) -> Option<String> {
     let out = Command::new("secret-tool")
         .arg("lookup")
@@ -40,6 +45,7 @@ pub fn lookup(account: &str) -> Option<String> {
     (out.status.success() && !token.trim().is_empty()).then(|| token.trim().to_owned())
 }
 
+#[cfg(not(windows))]
 pub fn clear(account: &str) {
     let _ = Command::new("secret-tool")
         .arg("clear")
@@ -47,6 +53,27 @@ pub fn clear(account: &str) {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status();
+}
+
+/// The Windows Credential Manager; a token the store refuses (it is limited in size) falls back to the owner-only file.
+#[cfg(windows)]
+pub fn store(account: &str, token: &str) -> bool {
+    keyring::Entry::new(SERVICE, account)
+        .and_then(|e| e.set_password(token))
+        .is_ok()
+}
+
+#[cfg(windows)]
+pub fn lookup(account: &str) -> Option<String> {
+    let token = keyring::Entry::new(SERVICE, account).ok()?.get_password().ok()?;
+    (!token.trim().is_empty()).then(|| token.trim().to_owned())
+}
+
+#[cfg(windows)]
+pub fn clear(account: &str) {
+    if let Ok(entry) = keyring::Entry::new(SERVICE, account) {
+        let _ = entry.delete_credential();
+    }
 }
 
 #[cfg(test)]
