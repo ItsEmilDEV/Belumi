@@ -11,6 +11,7 @@ belumi-core = { path = "../belumi-core" }
 eframe = { version = "0.37", default-features = false, features = ["glow", "default_fonts", "wayland", "x11", "clipboard", "links"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+png = "0.18"
 ureq = { version = "2", features = ["json", "tls"], default-features = false }
 
 [dev-dependencies]

@@ -18,6 +18,16 @@ cargo run --release -p belumi-launcher   # or: cargo run -p belumi-launcher
   settings and the Microsoft *refresh* token. There is no keychain integration yet.
   The game's output goes to `<data dir>/logs/game.log`.
 
+## Looks
+
+Settings -> Look switches between three styles: Modern (dark, calm), Modern Glass (gradient with translucent panels) and
+Minecraft (square, bevelled, tiled stone; own art, no Mojang textures). The choice is saved as `style` in `launcher.json`.
+Tokens and rules are in `DESIGN.md`. The game log stays solid in every style, and a test checks that text, muted text,
+danger text and text on the accent colour keep their contrast on every surface of every style.
+
+Development aid: `BELUMI_LAUNCHER_SHOTS=DIR belumi-launcher` saves a PNG of every page in every style (with two made-up
+accounts) and quits.
+
 ## Several accounts and renewal
 
 - "Add account" signs in another Microsoft account; every account stays saved (refresh tokens in the keyring or the

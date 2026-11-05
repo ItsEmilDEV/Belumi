@@ -46,6 +46,7 @@ pub struct Settings {
     legacy_account: Option<SavedAccount>,
     pub check_updates: bool,
     pub update_channel: String,
+    pub style: String,
 }
 
 fn installed_client() -> Option<PathBuf> {
@@ -99,6 +100,7 @@ impl Default for Settings {
             legacy_account: None,
             check_updates: true,
             update_channel: "stable".into(),
+            style: "modern".into(),
         }
     }
 }

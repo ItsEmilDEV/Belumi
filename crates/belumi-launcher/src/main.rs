@@ -4,6 +4,7 @@ mod heads;
 mod prism;
 mod secret;
 mod settings;
+mod theme;
 mod ui;
 mod update;
 mod versions;
@@ -65,6 +66,7 @@ struct App {
     tx: Sender<Event>,
     rx: Receiver<Event>,
     update: Option<update::Release>,
+    shots: Option<ui::Shots>,
     heads_dir: PathBuf,
     head_pixels: std::collections::HashMap<String, Vec<u8>>,
     head_textures: std::collections::HashMap<String, egui::TextureHandle>,
@@ -116,6 +118,7 @@ impl App {
             tx,
             rx,
             update: None,
+            shots: ui::Shots::from_env(),
             heads_dir: paths.config_dir().join("heads"),
             head_pixels: Default::default(),
             head_textures: Default::default(),
