@@ -61,48 +61,93 @@ pub fn pack_for_support(log: &Path, report: Option<&Path>, out: &Path) -> std::i
     zip.finish()
 }
 
-/// Drop what could identify the player: the home folder in paths and anything shaped like a token.
+/// Drop what could identify the player: the home folder in paths, the user name as a word, token-shaped
+/// strings and the values of token keys.
 pub(crate) fn redact(bytes: Vec<u8>) -> Vec<u8> {
     let mut text = String::from_utf8_lossy(&bytes).into_owned();
-    for var in ["USER", "USERNAME", "LOGNAME"] {
-        if let Ok(user) = std::env::var(var)
-            && user.len() > 2
-        {
-            text = text.replace(&user, "user");
-        }
-    }
     if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
         let home = home.to_string_lossy().into_owned();
         if home.len() > 3 {
-            text = text.replace(&home, "~");
+            text = text.replace(&home, "~").replace(&home.replace('\\', "\\\\"), "~");
         }
     }
-    let mut out = String::with_capacity(text.len());
-    for word in text.split_inclusive(char::is_whitespace) {
-        let core = word.trim_end();
-        let long = core.len() > 60 && core.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c));
-        if long {
-            out.push_str("<redacted>");
-            out.push_str(&word[core.len()..]);
-        } else {
-            out.push_str(word);
+    for var in ["USER", "USERNAME", "LOGNAME"] {
+        if let Ok(user) = std::env::var(var)
+            && user.len() >= 4
+        {
+            text = replace_word(&text, &user, "user");
         }
     }
-    out.into_bytes()
+    redact_tokens(&text).into_bytes()
 }
 
-/// A ZIP of a folder (its files and subfolders, stored).
+fn is_word(c: char) -> bool {
+    c.is_alphanumeric() || c == '_'
+}
+
+fn replace_word(text: &str, word: &str, with: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(at) = rest.find(word) {
+        let before = rest[..at].chars().next_back();
+        let after = rest[at + word.len()..].chars().next();
+        out.push_str(&rest[..at]);
+        if before.is_some_and(is_word) || after.is_some_and(is_word) {
+            out.push_str(word);
+        } else {
+            out.push_str(with);
+        }
+        rest = &rest[at + word.len()..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Runs of 40 or more token characters, wherever they sit in a line (inside JSON, after `=`, ...).
+fn redact_tokens(text: &str) -> String {
+    let token_char = |c: char| c.is_ascii_alphanumeric() || "._~+/=!*$-".contains(c);
+    let mut out = String::with_capacity(text.len());
+    let mut run = String::new();
+    for c in text.chars() {
+        if token_char(c) {
+            run.push(c);
+        } else {
+            flush_run(&mut out, &mut run);
+            out.push(c);
+        }
+    }
+    flush_run(&mut out, &mut run);
+    out
+}
+
+fn flush_run(out: &mut String, run: &mut String) {
+    let letters = run.chars().filter(|c| c.is_ascii_alphanumeric()).count();
+    if run.len() >= 40 && letters >= 30 && !run.starts_with("/") && !run.contains("//") {
+        out.push_str("<redacted>");
+    } else {
+        out.push_str(run);
+    }
+    run.clear();
+}
+
+/// A ZIP of a folder (its files and subfolders, stored; symlinks are skipped and a file keeps its last 16 MB).
 pub fn pack_dir(dir: &Path, out: &Path) -> std::io::Result<()> {
+    const KEEP: usize = 16 << 20;
     fn walk(base: &Path, at: &Path, zip: &mut Zip<std::fs::File>) -> std::io::Result<()> {
         let mut entries: Vec<_> = std::fs::read_dir(at)?.flatten().collect();
         entries.sort_by_key(|e| e.file_name());
         for entry in entries {
             let path = entry.path();
-            if path.is_dir() {
+            let Ok(meta) = std::fs::symlink_metadata(&path) else { continue };
+            if meta.is_dir() {
                 walk(base, &path, zip)?;
-            } else if path != base.join("belumi-report.zip") {
+            } else if meta.is_file() && path != base.join("belumi-report.zip") {
                 let name = path.strip_prefix(base).unwrap_or(&path).to_string_lossy().replace('\\', "/");
-                zip.add(&name, &std::fs::read(&path)?)?;
+                let mut data = std::fs::read(&path)?;
+                if data.len() > KEEP {
+                    data.drain(..data.len() - KEEP);
+                }
+                zip.add(&name, &data)?;
             }
         }
         Ok(())
@@ -215,12 +260,20 @@ mod tests {
     }
 
     #[test]
-    fn tokens_and_the_home_folder_are_redacted() {
-        let token = "a".repeat(80);
-        let text = format!("token {token} done\n").into_bytes();
-        let cleaned = String::from_utf8(redact(text)).unwrap();
-        assert!(cleaned.contains("<redacted>") && !cleaned.contains(&token));
-        assert!(cleaned.contains("done"));
+    fn tokens_are_redacted_inside_json_and_base64_but_paths_and_words_stay() {
+        let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9".to_owned() + &"aB3+/=".repeat(10);
+        let json = format!("{{\"access_token\":\"{token}\",\"name\":\"Steve\"}} done\n");
+        let cleaned = String::from_utf8(redact(json.into_bytes())).unwrap();
+        assert!(cleaned.contains("<redacted>") && !cleaned.contains("eyJ0eXAi"));
+        assert!(cleaned.contains("Steve") && cleaned.contains("done"));
+        let path = "/usr/lib/x86_64-linux-gnu/some/very/long/library/path/that/is/over/forty/chars.so";
+        assert_eq!(String::from_utf8(redact(path.as_bytes().to_vec())).unwrap(), path);
+    }
+
+    #[test]
+    fn the_user_name_is_replaced_only_as_a_whole_word() {
+        assert_eq!(replace_word("bob and bobby, /home/bob/x", "bob", "user"), "user and bobby, /home/user/x");
+        assert_eq!(replace_word("nothing", "bob", "user"), "nothing");
     }
 
     #[test]

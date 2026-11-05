@@ -32,6 +32,25 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+/// A sender that also wakes the window, so an event shows at once instead of at the next tick.
+#[derive(Clone)]
+struct Notifier {
+    tx: Sender<Event>,
+    ctx: Arc<std::sync::Mutex<Option<egui::Context>>>,
+}
+
+impl Notifier {
+    fn send(&self, event: Event) -> Result<(), std::sync::mpsc::SendError<Event>> {
+        let sent = self.tx.send(event);
+        if let Ok(ctx) = self.ctx.lock()
+            && let Some(ctx) = ctx.as_ref()
+        {
+            ctx.request_repaint();
+        }
+        sent
+    }
+}
+
 enum Event {
     Status(String),
     Code(DeviceCode),
@@ -78,7 +97,8 @@ struct App {
     new_server: settings::ServerEntry,
     log_text: String,
     log_read: Option<Instant>,
-    tx: Sender<Event>,
+    tx: Notifier,
+    epoch: Arc<std::sync::atomic::AtomicU64>,
     rx: Receiver<Event>,
     update: Option<update::Release>,
     shots: Option<ui::Shots>,
@@ -96,6 +116,7 @@ struct App {
     play_list: usize,
     add_server: bool,
     diagnosing: bool,
+    fields_typed: bool,
 }
 
 impl App {
@@ -103,7 +124,8 @@ impl App {
         let paths = BelumiPaths::new();
         let settings_path = paths.config_dir().join("launcher.json");
         let settings = Settings::load(&settings_path);
-        let (tx, rx) = channel();
+        let (raw_tx, rx) = channel();
+        let tx = Notifier { tx: raw_tx, ctx: Arc::new(std::sync::Mutex::new(None)) };
         let mut settings = settings;
         for saved in &mut settings.accounts {
             if saved.refresh_token.is_empty() {
@@ -112,7 +134,6 @@ impl App {
                 }
             }
         }
-        settings.accounts.retain(|a| !a.refresh_token.is_empty());
         if settings.active_saved().is_none() {
             settings.active_account = settings
                 .accounts
@@ -141,6 +162,7 @@ impl App {
             log_text: String::new(),
             log_read: None,
             tx,
+            epoch: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             rx,
             update: None,
             shots: ui::Shots::from_env(),
@@ -158,6 +180,7 @@ impl App {
             play_list: 0,
             add_server: false,
             diagnosing: false,
+            fields_typed: false,
         };
         app.check_for_update();
         if app.settings.active_saved().is_some() && !app.settings.client_id.trim().is_empty() {
@@ -236,8 +259,11 @@ impl App {
             Err(e) => return self.status = e,
         };
         self.busy = true;
-        self.cancel.store(false, Ordering::Relaxed);
-        self.status = "Asking Microsoft for a sign-in code...".into();
+        self.cancel.store(true, Ordering::Relaxed);
+        self.cancel = Arc::new(AtomicBool::new(false));
+        let mine = self.epoch.fetch_add(1, Ordering::SeqCst) + 1;
+        let epoch = self.epoch.clone();
+        self.status = i18n::tr("Asking Microsoft for a sign-in code...");
         let (tx, cancel) = (self.tx.clone(), self.cancel.clone());
         std::thread::spawn(move || {
             let result = (|| {
@@ -249,8 +275,14 @@ impl App {
                 let _ = tx.send(Event::Status(
                     "Signing in to Xbox Live and Minecraft...".into(),
                 ));
+                if cancel.load(Ordering::Relaxed) {
+                    return Err("Cancelled".to_owned());
+                }
                 auth::minecraft_account(&ms)
             })();
+            if epoch.load(Ordering::SeqCst) != mine {
+                return;
+            }
             let _ = tx.send(match result {
                 Ok(account) => Event::SignedIn(account),
                 Err(e) => Event::Failed(e),
@@ -264,11 +296,24 @@ impl App {
             return;
         };
         self.busy = true;
-        self.status = format!("Renewing the sign-in of {}...", saved.name);
+        self.status = i18n::trf("Renewing the sign-in of {}...", &[&saved.name]);
         let tx = self.tx.clone();
+        let mine = self.epoch.fetch_add(1, Ordering::SeqCst) + 1;
+        let epoch = self.epoch.clone();
         std::thread::spawn(move || {
-            let result = auth::refresh(&client_id, &saved.refresh_token)
-                .and_then(|ms| auth::minecraft_account(&ms));
+            let token = if saved.refresh_token.is_empty() {
+                secret::lookup(&saved.uuid).unwrap_or_default()
+            } else {
+                saved.refresh_token.clone()
+            };
+            let result = if token.is_empty() {
+                Err(i18n::tr("The saved sign-in could not be read from the keyring. Sign in again."))
+            } else {
+                auth::refresh(&client_id, &token).and_then(|ms| auth::minecraft_account(&ms))
+            };
+            if epoch.load(Ordering::SeqCst) != mine {
+                return;
+            }
             let _ = tx.send(match result {
                 Ok(account) => Event::SignedIn(account),
                 Err(e) => Event::Failed(e),
@@ -329,26 +374,29 @@ impl App {
     }
 
     fn sign_out(&mut self) {
+        let was_prism = self.source == Some(Source::Prism);
         self.settings.use_prism = false;
         self.source = None;
         self.prism_expires = None;
         self.account = None;
-        if let Some(uuid) = self.settings.active_saved().map(|a| a.uuid.clone()) {
+        self.epoch.fetch_add(1, Ordering::SeqCst);
+        self.busy = false;
+        if !was_prism && let Some(uuid) = self.settings.active_saved().map(|a| a.uuid.clone()) {
             self.settings.forget(&uuid);
             secret::clear(&uuid);
         }
         self.code = None;
         self.cancel.store(true, Ordering::Relaxed);
-        self.status = "Signed out.".into();
+        self.status = i18n::tr("Signed out.");
         self.save();
         if self.settings.active_saved().is_some() {
             self.renew();
         }
     }
 
-    fn switch_account(&mut self, uuid: &str) {
+    fn switch_account(&mut self, uuid: &str) -> bool {
         if self.busy || self.settings.accounts.iter().all(|a| a.uuid != uuid) {
-            return;
+            return false;
         }
         self.settings.use_prism = false;
         self.settings.active_account = uuid.to_owned();
@@ -357,9 +405,12 @@ impl App {
         self.prism_expires = None;
         self.save();
         self.renew();
+        true
     }
 
     fn remove_account(&mut self, uuid: &str) {
+        self.epoch.fetch_add(1, Ordering::SeqCst);
+        self.busy = false;
         if self.settings.active_account == uuid {
             self.account = None;
             self.source = None;
@@ -400,10 +451,11 @@ impl App {
             && self.settings.accounts.iter().any(|a| a.uuid == server.account)
         {
             let wanted = server.account.clone();
-            self.pending_play = Some((online, target));
-            self.switch_account(&wanted);
-            self.status = i18n::tr("Switching to the account of this server...");
-            return;
+            if self.switch_account(&wanted) {
+                self.pending_play = Some((online, target));
+                self.status = i18n::tr("Switching to the account of this server...");
+                return;
+            }
         }
         let account = if online {
             match &self.account {
@@ -448,9 +500,10 @@ impl App {
         self.diagnosing = true;
         self.status = i18n::tr("Diagnose is running; the game opens a few times.");
         let (settings, account, tx) = (self.settings.clone(), self.account.clone(), self.tx.clone());
-        let out = BelumiPaths::new().data_dir().join("belumi-report");
+        let out = cli::report_folder(None, &BelumiPaths::new().data_dir().join("belumi-report"));
         std::thread::spawn(move || {
-            let _ = std::fs::remove_dir_all(&out);
+            let _ = std::fs::create_dir_all(&out);
+            let _ = std::fs::write(out.join(".belumi-report"), b"");
             let server = cli::diagnose_server();
             let progress = |line: &str| {
                 let _ = tx.send(Event::Status(line.to_owned()));
@@ -514,7 +567,11 @@ impl App {
                     self.source = Some(Source::Own);
                     self.save();
                     if let Some((online, target)) = self.pending_play.take() {
-                        self.play(online, target);
+                        self.pending_play = None;
+                        let wanted = self.settings.servers.get(self.settings.selected_server).map(|s| s.account.clone());
+                        if wanted.as_deref().is_none_or(|w| w.is_empty() || w == self.settings.active_account) {
+                            self.play(online, target);
+                        }
                     }
                 }
                 Event::Failed(e) => {
@@ -540,7 +597,7 @@ impl App {
                 Event::Exited(text, code) => {
                     self.playing = false;
                     self.status = text;
-                    let log = std::fs::read_to_string(&self.log_path).unwrap_or_default();
+                    let log = ui::tail(&self.log_path, 256 * 1024);
                     self.crash = crash::from_log(code, &log);
                     if self.crash.is_some() {
                         self.status = i18n::tr("The game stopped unexpectedly.");

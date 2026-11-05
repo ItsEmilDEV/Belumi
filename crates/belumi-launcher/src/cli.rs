@@ -98,6 +98,32 @@ fn account_for(settings: &mut Settings, path: &std::path::Path) -> Result<auth::
     Err("No signed-in account. Open the launcher once and sign in, or use --offline.".into())
 }
 
+const REPORT_MARKER: &str = ".belumi-report";
+
+/// Where a report goes: the folder asked for if it is new, empty or an earlier report (then it is
+/// cleared); any other folder gets a `belumi-report` inside it, so nothing of the player's is deleted.
+pub fn report_folder(asked: Option<std::path::PathBuf>, default: &std::path::Path) -> std::path::PathBuf {
+    let Some(dir) = asked else {
+        clear_report(default);
+        return default.to_path_buf();
+    };
+    let empty = std::fs::read_dir(&dir).map_or(true, |mut d| d.next().is_none());
+    if empty || dir.join(REPORT_MARKER).is_file() {
+        clear_report(&dir);
+        dir
+    } else {
+        let inside = dir.join("belumi-report");
+        clear_report(&inside);
+        inside
+    }
+}
+
+fn clear_report(dir: &std::path::Path) {
+    if dir.join(REPORT_MARKER).is_file() {
+        let _ = std::fs::remove_dir_all(dir);
+    }
+}
+
 /// The server a diagnose build visits: `diagnose-server.txt` beside the program.
 pub fn diagnose_server() -> Option<String> {
     let exe = std::env::current_exe().ok()?;
@@ -106,8 +132,26 @@ pub fn diagnose_server() -> Option<String> {
     Some(line.to_owned())
 }
 
+/// A program without a console window (the release build on Windows) prints into the console it was started from.
+#[cfg(windows)]
+fn attach_console() {
+    unsafe extern "system" {
+        fn AttachConsole(process: u32) -> i32;
+    }
+    unsafe {
+        AttachConsole(u32::MAX);
+    }
+}
+
+#[cfg(not(windows))]
+fn attach_console() {}
+
 /// Runs a headless start; `None` means "open the window".
 pub fn run(args: impl IntoIterator<Item = String>) -> Option<i32> {
+    let args: Vec<String> = args.into_iter().collect();
+    if !args.is_empty() {
+        attach_console();
+    }
     let command = match parse(args) {
         Ok(Some(r)) => r,
         Ok(None) => return None,
@@ -127,8 +171,11 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Option<i32> {
         Command::Diagnose { offline, server, out } => {
             let account = if offline { None } else { account_for(&mut settings, &path).ok() };
             let server = server.or_else(diagnose_server);
-            let out = out.unwrap_or_else(|| paths.data_dir().join("belumi-report"));
-            let _ = std::fs::remove_dir_all(&out);
+            let out = report_folder(out, &paths.data_dir().join("belumi-report"));
+            if let Err(e) = std::fs::create_dir_all(&out).and_then(|()| std::fs::write(out.join(REPORT_MARKER), b"")) {
+                eprintln!("belumi-launcher: {e}");
+                return Some(1);
+            }
             return Some(match crate::diagnose::run(&settings, account.as_ref(), server.as_deref(), &out, &|line| println!("{line}")) {
                 Ok(zip) => {
                     println!("Done. Send this folder (or the ZIP inside it): {}", out.display());
@@ -153,6 +200,7 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Option<i32> {
             }
         }
     };
+    let _ = std::fs::create_dir_all(paths.logs_dir());
     let log = std::fs::File::create(paths.logs_dir().join("game.log")).ok();
     match game::launch(&settings, account.as_ref(), &request.target, log) {
         Ok(mut child) => Some(child.wait().ok().and_then(|s| s.code()).unwrap_or(1)),
@@ -201,6 +249,27 @@ mod tests {
             parse(args(&["--diagnose", "--offline"])),
             Ok(Some(Command::Diagnose { offline: true, server: None, out: None }))
         );
+    }
+
+    #[test]
+    fn a_report_never_clears_a_folder_that_is_not_its_own() {
+        let dir = std::env::temp_dir().join(format!("belumi-report-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("precious.txt"), b"keep").unwrap();
+        let default = dir.join("default");
+        let out = report_folder(Some(dir.clone()), &default);
+        assert_eq!(out, dir.join("belumi-report"));
+        assert!(dir.join("precious.txt").is_file());
+        std::fs::create_dir_all(&out).unwrap();
+        std::fs::write(out.join(REPORT_MARKER), b"").unwrap();
+        std::fs::write(out.join("old.txt"), b"old").unwrap();
+        let again = report_folder(Some(out.clone()), &default);
+        assert_eq!(again, out);
+        assert!(!out.join("old.txt").exists());
+        let fresh = report_folder(Some(dir.join("new")), &default);
+        assert_eq!(fresh, dir.join("new"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

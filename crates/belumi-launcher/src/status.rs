@@ -118,8 +118,11 @@ pub fn parse_status(json: &str, latency_ms: u32) -> Option<ServerStatus> {
 /// Server List Ping: the status and the time the ping packet took to come back.
 pub fn ping(address: &str, timeout: Duration) -> Option<ServerStatus> {
     let (host, port) = split_address(address);
-    let target = (host.as_str(), port).to_socket_addrs().ok()?.next()?;
-    let mut stream = TcpStream::connect_timeout(&target, timeout).ok()?;
+    let mut stream = (host.as_str(), port)
+        .to_socket_addrs()
+        .ok()?
+        .take(4)
+        .find_map(|target| TcpStream::connect_timeout(&target, timeout).ok())?;
     stream.set_read_timeout(Some(timeout)).ok()?;
     stream.set_write_timeout(Some(timeout)).ok()?;
     let mut handshake = Vec::new();

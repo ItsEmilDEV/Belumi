@@ -131,7 +131,18 @@ impl App {
             }
             let dir = worlds::game_dir(&self.settings.game_dir).join("shaderpacks");
             let _ = std::fs::create_dir_all(&dir);
-            self.status = match std::fs::copy(&path, dir.join(&name)) {
+            let mut target = dir.join(&name);
+            if std::fs::canonicalize(&path).ok().zip(std::fs::canonicalize(&target).ok()).is_some_and(|(a, b)| a == b) {
+                self.status = trf("Added the shader pack {}.", &[&name.to_string_lossy()]);
+                continue;
+            }
+            let mut n = 2;
+            while target.exists() {
+                let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+                target = dir.join(format!("{stem} ({n}).zip"));
+                n += 1;
+            }
+            self.status = match std::fs::copy(&path, &target) {
                 Ok(_) => trf("Added the shader pack {}.", &[&name.to_string_lossy()]),
                 Err(e) => format!("{e}"),
             };
@@ -241,7 +252,7 @@ impl App {
             self.switch_account(&uuid);
         }
 
-        let can_play = !self.playing && !self.busy;
+        let can_play = !self.playing && !self.busy && !self.diagnosing;
         let online = can_play && self.account.is_some();
         ui.add_space(2.0);
         ui.horizontal(|ui| {
@@ -458,11 +469,14 @@ impl App {
                 ui.painter().galley(egui::pos2(rect.min.x + 38.0, rect.min.y + 25.0), galley, t.muted);
             }
             let button = egui::Rect::from_min_size(egui::pos2(rect.max.x - 110.0, rect.min.y + 8.0), vec2(104.0, 30.0));
-            let mut inner = ui.new_child(egui::UiBuilder::new().max_rect(button));
-            if action(&mut inner, Kind::Secondary, Some(Icon::Play), &tr("Start"), can_start, vec2(104.0, 30.0))
-                .on_hover_text(tr("Start in this world"))
-                .clicked()
-            {
+            let clicked = ui
+                .scope_builder(egui::UiBuilder::new().id_salt(("world", &world.folder)).max_rect(button), |inner| {
+                    action(inner, Kind::Secondary, Some(Icon::Play), &tr("Start"), can_start, vec2(104.0, 30.0))
+                        .on_hover_text(tr("Start in this world"))
+                        .clicked()
+                })
+                .inner;
+            if clicked {
                 self.play(online, Target::World(world.folder.clone()));
             }
         }
@@ -505,6 +519,7 @@ impl App {
             }
             if self.busy && action(ui, Kind::Ghost, None, &tr("Cancel"), true, vec2(0.0, 34.0)).clicked() {
                 self.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+                self.epoch.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 self.busy = false;
                 self.code = None;
                 self.status = tr("Cancelled.");
@@ -573,33 +588,31 @@ impl App {
     }
 
     fn page_log(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            title(ui, &tr("Game log"), &tr("What the game wrote the last time it ran"));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
-                if action(ui, Kind::Ghost, Some(Icon::Folder), &tr("Open folder"), true, vec2(0.0, 28.0)).clicked() {
-                    crate::os::open(self.log_path.parent().unwrap_or(&self.log_path));
-                }
-                if action(ui, Kind::Ghost, Some(Icon::Shield), &tr("Run diagnose"), !self.diagnosing && !self.playing, vec2(0.0, 28.0))
-                    .on_hover_text(tr("Runs benchmarks and screenshots in a scratch folder and collects a report to send for support."))
-                    .clicked()
-                {
-                    self.start_diagnose();
-                }
-                if action(ui, Kind::Ghost, None, &tr("Copy"), !self.log_text.is_empty(), vec2(0.0, 28.0)).clicked() {
-                    ui.ctx().copy_text(self.log_text.clone());
-                    self.status = tr("Log copied.");
-                }
-                if action(ui, Kind::Ghost, Some(Icon::Refresh), &tr("Refresh"), true, vec2(0.0, 28.0)).clicked() {
-                    self.log_read = None;
-                }
-            });
+        title(ui, &tr("Game log"), &tr("What the game wrote the last time it ran"));
+        ui.horizontal_wrapped(|ui| {
+            if action(ui, Kind::Secondary, Some(Icon::Refresh), &tr("Refresh"), true, vec2(0.0, 30.0)).clicked() {
+                self.log_read = None;
+            }
+            if action(ui, Kind::Secondary, None, &tr("Copy"), !self.log_text.is_empty(), vec2(0.0, 30.0)).clicked() {
+                ui.ctx().copy_text(self.log_text.clone());
+                self.status = tr("Log copied.");
+            }
+            if action(ui, Kind::Secondary, Some(Icon::Folder), &tr("Open folder"), true, vec2(0.0, 30.0)).clicked() {
+                crate::os::open(self.log_path.parent().unwrap_or(&self.log_path));
+            }
+            if action(ui, Kind::Secondary, Some(Icon::Shield), &tr("Run diagnose"), !self.diagnosing && !self.playing, vec2(0.0, 30.0))
+                .on_hover_text(tr("Runs benchmarks and screenshots in a scratch folder and collects a report to send for support."))
+                .clicked()
+            {
+                self.start_diagnose();
+            }
         });
         self.read_log();
         well(ui, |ui| {
             if self.log_text.is_empty() {
                 empty_state(ui, Icon::Log, &trf("Nothing yet. The game writes to {}", &[&self.log_path.display().to_string()]));
             } else {
-                egui::ScrollArea::both().stick_to_bottom(true).auto_shrink(false).show(ui, |ui| {
+                egui::ScrollArea::both().stick_to_bottom(true).max_height(360.0).auto_shrink([false, true]).show(ui, |ui| {
                     ui.add(egui::Label::new(RichText::new(&self.log_text).font(egui::FontId::monospace(12.5)).color(t().muted)).extend());
                 });
             }
@@ -631,10 +644,15 @@ impl App {
         section(ui, &tr("Game files"));
         card(ui, |ui| {
             egui::Grid::new("files").num_columns(2).spacing([14.0, 10.0]).show(ui, |ui| {
+                let typed = &mut self.fields_typed;
                 let mut field = |ui: &mut egui::Ui, label: &str, value: &mut String| {
                     ui.label(muted(tr(label)));
                     let response = ui.add(egui::TextEdit::singleline(value).desired_width(ui.available_width().max(260.0)));
-                    changed |= response.changed();
+                    *typed |= response.changed();
+                    if response.lost_focus() && *typed {
+                        *typed = false;
+                        changed = true;
+                    }
                     response.on_hover_text(value.clone());
                     ui.end_row();
                 };
@@ -735,7 +753,7 @@ impl App {
     }
 }
 
-fn tail(path: &std::path::Path, bytes: u64) -> String {
+pub(crate) fn tail(path: &std::path::Path, bytes: u64) -> String {
     use std::io::{Read, Seek, SeekFrom};
     let Ok(mut file) = std::fs::File::open(path) else {
         return String::new();
@@ -757,6 +775,11 @@ fn tail(path: &std::path::Path, bytes: u64) -> String {
 
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        if let Ok(mut ctx) = self.tx.ctx.lock()
+            && ctx.is_none()
+        {
+            *ctx = Some(ui.ctx().clone());
+        }
         let language = i18n::Lang::parse(&self.settings.language, &i18n::system_language());
         i18n::set(language);
         let want = theme::Style::parse(&self.settings.style);

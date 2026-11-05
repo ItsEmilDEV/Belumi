@@ -121,10 +121,12 @@ impl Default for Settings {
 
 impl Settings {
     pub fn load(path: &Path) -> Self {
-        let mut settings: Self = std::fs::read_to_string(path)
-            .ok()
-            .and_then(|text| serde_json::from_str(&text).ok())
-            .unwrap_or_default();
+        let text = std::fs::read_to_string(path).ok();
+        let parsed = text.as_deref().and_then(|t| serde_json::from_str(t).ok());
+        if parsed.is_none() && text.as_ref().is_some_and(|t| !t.trim().is_empty()) {
+            let _ = std::fs::copy(path, path.with_extension("json.bad"));
+        }
+        let mut settings: Self = parsed.unwrap_or_default();
         if settings.client_id.trim().is_empty() {
             settings.client_id = Self::default().client_id;
         } else if RETIRED_CLIENT_IDS.contains(&settings.client_id.trim()) {

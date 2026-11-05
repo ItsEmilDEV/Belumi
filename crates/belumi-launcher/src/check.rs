@@ -9,10 +9,14 @@ pub struct Check {
 }
 
 fn writable(dir: &Path) -> bool {
-    if std::fs::create_dir_all(dir).is_err() {
-        return false;
+    let mut at = dir;
+    while !at.is_dir() {
+        match at.parent() {
+            Some(parent) => at = parent,
+            None => return false,
+        }
     }
-    let probe = dir.join(".belumi-write-test");
+    let probe = at.join(".belumi-write-test");
     let ok = std::fs::write(&probe, b"x").is_ok();
     let _ = std::fs::remove_file(probe);
     ok

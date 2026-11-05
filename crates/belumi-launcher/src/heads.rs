@@ -65,7 +65,7 @@ fn fetch(uuid: &str) -> Option<Vec<u8>> {
 }
 
 pub fn head_of(rgba: &[u8], width: usize, height: usize) -> Option<Vec<u8>> {
-    if width < 64 || height < 32 || rgba.len() < width * height * 4 {
+    if width < 64 || width % 64 != 0 || height < width / 2 || rgba.len() < width * height * 4 {
         return None;
     }
     let scale = width / 64;

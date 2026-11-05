@@ -46,7 +46,7 @@ pub fn arguments(settings: &Settings, signed_in: bool, target: &Target) -> Vec<S
         }
         Target::World(name) if !name.trim().is_empty() => {
             args.push("--quickPlaySingleplayer".into());
-            args.push(name.trim().to_owned());
+            args.push(name.clone());
         }
         _ => {}
     }
@@ -93,6 +93,11 @@ pub fn launch_with(
     command.args(arguments(settings, account.is_some(), target));
     command.args(extra_args);
     command.envs(extra_env.iter().copied());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
     match settings.graphics_api.as_str() {
         "vulkan" => {
             command.env("WGPU_BACKEND", "vulkan");
