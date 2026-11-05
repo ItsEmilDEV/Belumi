@@ -10,6 +10,9 @@ extras) are on the same page as quick toggles.
 | Zoom | C (hold) | Narrows the field of view; the wheel adjusts it while held; smooth easing |
 | Minimap | | Corner map with height shading, round or square, rotating or north up; dots for players (white), hostile mobs (red), neutral mobs (yellow) and animals (green), switchable under Maps |
 | Graphics quality | Settings | Default, High, Medium, Low, Minimal, Shaders off: steps the active shader pack through its own `profile.*` entries (written to `shaderpacks/<pack>.zip.txt`, only if that file is empty or the game's own), and turns the shaders off at the last step |
+| Map overlays | Settings, `/map` | Chunk borders and slime chunks (tinted green) on both maps. Slime chunks need the world seed: singleplayer knows it, on a server type `/map seed NUMBER` (kept per server). `/map grid`, `/map slime` toggle, `/map export` writes a PNG of everything explored to `map-exports/` |
+| Death waypoint | automatic | A waypoint "Death" is set where you died (replacing the last one) when waypoints are on |
+| Interface style | Settings | Minecraft (translucent black boxes) or Modern (flat, soft corners, thin edge) for the HUD panels, the voice panel and the minimap rim |
 | World map | M | Overlay of everything you explored, saved per world and server. Left button drags, arrows/WASD move, wheel zooms, C centres on you, B sets a waypoint at the crosshair, Enter teleports there (needs permission); the player stands still while it is open |
 | Waypoints | B | Saves your position; `/waypoint add [name]`, `remove NAME`, `list`, `clear`; labels in the world, on the maps and a nearest list |
 | Packet inspector | F8 | Live packet rates and sizes, top packets by bytes, the latest packets |
