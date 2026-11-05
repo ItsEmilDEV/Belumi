@@ -102,8 +102,12 @@ fn accent_button(text: &str) -> egui::Button<'static> {
     .min_size(vec2(170.0, 42.0))
 }
 
-fn avatar(ui: &mut egui::Ui, name: &str, size: f32) {
+fn avatar(ui: &mut egui::Ui, name: &str, head: Option<&egui::TextureHandle>, size: f32) {
     let (rect, _) = ui.allocate_exact_size(vec2(size, size), egui::Sense::hover());
+    if let Some(head) = head {
+        egui::Image::new(head).corner_radius(size * 0.12).paint_at(ui, rect);
+        return;
+    }
     ui.painter()
         .circle_filled(rect.center(), size / 2.0, ACCENT_DIM);
     ui.painter()
@@ -170,6 +174,7 @@ impl eframe::App for App {
         }
         self.poll();
         self.watch_prism();
+        self.watch_renewal();
         ui.ctx().request_repaint_after(self.tick());
 
         egui::Panel::left("nav")
@@ -267,12 +272,15 @@ impl App {
                         let hours = exp.saturating_sub(unix_now()) as f64 / 3600.0;
                         format!("via Prism · token valid for {hours:.1} h")
                     }
-                    (Some(Source::Own), _) => "via the Belumi app".to_owned(),
+                    (Some(Source::Own), _) => {
+                        let hours = a.expires_at.saturating_sub(unix_now()) as f64 / 3600.0;
+                        format!("via the Belumi app · token valid for {hours:.1} h")
+                    }
                     _ => "signed in".to_owned(),
                 };
                 (a.name.clone(), via)
             }
-            None => match &self.settings.account {
+            None => match self.settings.active_saved() {
                 Some(s) => (s.name.clone(), "saved, not renewed yet".to_owned()),
                 None => (
                     "Not signed in".to_owned(),
@@ -282,12 +290,21 @@ impl App {
         }
     }
 
+    fn active_head(&mut self, ctx: &egui::Context) -> Option<egui::TextureHandle> {
+        let uuid = match &self.account {
+            Some(a) => a.uuid.clone(),
+            None => self.settings.active_saved().map(|a| a.uuid.clone())?,
+        };
+        self.head_texture(ctx, &uuid)
+    }
+
     fn page_play(&mut self, ui: &mut egui::Ui) {
         heading(ui, "Play");
         let (name, detail) = self.account_line();
+        let head = self.active_head(ui.ctx());
         card(ui, |ui| {
             ui.horizontal(|ui| {
-                avatar(ui, &name, 44.0);
+                avatar(ui, &name, head.as_ref(), 44.0);
                 ui.vertical(|ui| {
                     ui.label(RichText::new(name).strong().size(16.0));
                     ui.label(muted(detail));
@@ -405,13 +422,24 @@ impl App {
                 .on_disabled_hover_text("Sign in first, or play offline")
                 .clicked()
             {
-                self.play(true);
+                self.play(true, true);
+            }
+            if ui
+                .add_enabled(
+                    online,
+                    egui::Button::new("Main menu").min_size(vec2(0.0, 42.0)),
+                )
+                .on_hover_text("Starts the game without joining the selected server")
+                .on_disabled_hover_text("Sign in first, or play offline")
+                .clicked()
+            {
+                self.play(true, false);
             }
             let offline =
                 egui::Button::new(format!("Play offline as {}", self.settings.offline_name))
                     .min_size(vec2(0.0, 42.0));
             if ui.add_enabled(can_play, offline).clicked() {
-                self.play(false);
+                self.play(false, true);
             }
         });
     }
@@ -419,9 +447,10 @@ impl App {
     fn page_account(&mut self, ui: &mut egui::Ui) {
         heading(ui, "Account");
         let (name, detail) = self.account_line();
+        let head = self.active_head(ui.ctx());
         card(ui, |ui| {
             ui.horizontal(|ui| {
-                avatar(ui, &name, 44.0);
+                avatar(ui, &name, head.as_ref(), 44.0);
                 ui.vertical(|ui| {
                     ui.label(RichText::new(name).strong().size(16.0));
                     ui.label(muted(detail));
@@ -444,7 +473,8 @@ impl App {
         }
         ui.horizontal_wrapped(|ui| {
             if ui
-                .add_enabled(!self.busy, egui::Button::new("Sign in with Microsoft"))
+                .add_enabled(!self.busy, egui::Button::new("Add account"))
+                .on_hover_text("Signs in another Microsoft account; the others stay saved")
                 .clicked()
             {
                 self.sign_in();
@@ -455,6 +485,16 @@ impl App {
                 self.busy = false;
                 self.code = None;
                 self.status = "Cancelled.".into();
+            }
+            if ui
+                .add_enabled(
+                    !self.busy && self.settings.active_saved().is_some(),
+                    egui::Button::new("Renew now"),
+                )
+                .on_hover_text("Gets a fresh token for the active account")
+                .clicked()
+            {
+                self.renew();
             }
             if ui
                 .add_enabled(!self.busy, egui::Button::new("Use my Prism account"))
@@ -471,6 +511,55 @@ impl App {
                 self.sign_out();
             }
         });
+        if !self.settings.accounts.is_empty() {
+            heading(ui, "Saved accounts");
+            let rows: Vec<(String, String, bool)> = self
+                .settings
+                .accounts
+                .iter()
+                .map(|a| {
+                    (
+                        a.name.clone(),
+                        a.uuid.clone(),
+                        a.uuid == self.settings.active_account
+                            && self.source != Some(Source::Prism),
+                    )
+                })
+                .collect();
+            let mut switch = None;
+            let mut remove = None;
+            for (name, uuid, active) in rows {
+                let head = self.head_texture(ui.ctx(), &uuid);
+                card(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        avatar(ui, &name, head.as_ref(), 28.0);
+                        ui.label(RichText::new(&name).strong());
+                        ui.label(muted(if active { "active" } else { "" }));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui
+                                .add_enabled(!self.busy, egui::Button::new("Remove"))
+                                .clicked()
+                            {
+                                remove = Some(uuid.clone());
+                            }
+                            if !active
+                                && ui
+                                    .add_enabled(!self.busy, egui::Button::new("Use"))
+                                    .clicked()
+                            {
+                                switch = Some(uuid.clone());
+                            }
+                        });
+                    });
+                });
+            }
+            if let Some(uuid) = switch {
+                self.switch_account(&uuid);
+            }
+            if let Some(uuid) = remove {
+                self.remove_account(&uuid);
+            }
+        }
         if ui
             .checkbox(&mut self.settings.use_prism, "Keep using Prism's login automatically")
             .on_hover_text(

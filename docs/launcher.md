@@ -18,6 +18,18 @@ cargo run --release -p belumi-launcher   # or: cargo run -p belumi-launcher
   settings and the Microsoft *refresh* token. There is no keychain integration yet.
   The game's output goes to `<data dir>/logs/game.log`.
 
+## Several accounts and renewal
+
+- "Add account" signs in another Microsoft account; every account stays saved (refresh tokens in the keyring or the
+  owner-only file) and "Use" switches between them. "Remove" forgets one. Older settings with one saved account
+  are migrated into the list.
+- The launcher renews the active account when it starts, when you switch, with "Renew now" and in the background
+  about 15 minutes before its Minecraft token ends.
+- The game gets the client ID, the refresh token and the token's end time in the session JSON. It renews the
+  account itself shortly before joining a server and again when the session service says "invalid session", so
+  a long play session or a reconnect after a day needs no restart. Prism accounts carry no refresh token and
+  are not renewed in the game.
+
 ## Using a Prism Launcher account
 
 "Use my Prism account" (and the checkbox "Keep using Prism's login automatically") reads

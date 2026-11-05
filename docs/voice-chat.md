@@ -1,18 +1,24 @@
 # Belumi Voice Chat
 
 Belumi can talk to servers that run the [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) mod or plugin
-(compatibility version 21, the 2.6.x line). The client side is the crate `crates/belumi-voice`; the game glue is
+(compatibility versions 20, the stable 2.6.x line, and 21, the 2.7.0 pre-releases). The client side is the crate `crates/belumi-voice`; the game glue is
 `vendor/horizon/crates/horizon-client/src/game/belumi_voice.rs`.
 
 ## Status
 
-Verified: the wire format (secret packet, UDP framing, AES-128-GCM, all packet kinds), Opus encoding and decoding, the
-connect sequence, microphone gating, positional mixing and the timeout, against a fake server that implements the
-protocol as the server mod documents it in its source (28 tests, `cargo test -p belumi-voice`).
+Verified against a live server (VexProjects, Simple Voice Chat 2.6.x, compatibility version 20): the request, the secret,
+UDP authentication and the connection check all complete and the client reports `Voice chat connected.` Audio itself
+(microphone and playback) has not been checked by ear. The wire format, Opus handling, microphone gating, positional
+mixing and the timeout are also covered by a fake server (`cargo test -p belumi-voice`).
 
-Not verified: a live Simple Voice Chat server and real audio hardware. Treat the first session on a real server as a
-test. If a server refuses the client, `Voice chat lost: ...` or silence in chat is the symptom; please report the
-server's mod version.
+Both protocol generations are supported. The client asks with 20 first, then 21, 19, 22, 18 and 23, waiting four seconds
+for each. The server's secret decides the dialect: a secret without a connection UUID is version 20, whose acknowledgements
+carry no nonce, whose `authenticate` packet carries the player UUID and the secret, and whose datagrams are addressed with
+the player UUID. The UDP host is resolved IPv4 first (voice servers often answer only on IPv4).
+
+On screen: a coloured block in the HUD corner (connecting, mic on / muted / ready, who is speaking) and a green signal
+bar above the head of every player who is speaking. Set `BELUMI_DEBUG_VOICE=1` to also print each handshake step in chat;
+the steps always go to the game log.
 
 ## Turn it on
 

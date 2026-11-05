@@ -3,6 +3,11 @@ use std::path::{Path, PathBuf};
 
 pub const BUILT_IN_CLIENT_ID: &str = "142091da-91bb-4712-8a2c-06755a18080d";
 
+const RETIRED_CLIENT_IDS: &[&str] = &[
+    "594ada3c-f3ab-4d1e-a381-9a8d80b6dd72",
+    "56e049ec-9827-4229-b7df-e6829beb50e4",
+];
+
 pub fn built_in_client_id() -> Option<&'static str> {
     (BUILT_IN_CLIENT_ID != "PASTE-YOUR-AZURE-CLIENT-ID-HERE").then_some(BUILT_IN_CLIENT_ID)
 }
@@ -35,7 +40,10 @@ pub struct Settings {
     pub offline_name: String,
     pub use_prism: bool,
     pub prism_accounts_path: String,
-    pub account: Option<SavedAccount>,
+    pub accounts: Vec<SavedAccount>,
+    pub active_account: String,
+    #[serde(rename = "account", skip_serializing_if = "Option::is_none")]
+    legacy_account: Option<SavedAccount>,
     pub check_updates: bool,
     pub update_channel: String,
 }
@@ -86,7 +94,9 @@ impl Default for Settings {
             offline_name: "BelumiPlayer".into(),
             use_prism: false,
             prism_accounts_path: String::new(),
-            account: None,
+            accounts: Vec::new(),
+            active_account: String::new(),
+            legacy_account: None,
             check_updates: true,
             update_channel: "stable".into(),
         }
@@ -101,6 +111,21 @@ impl Settings {
             .unwrap_or_default();
         if settings.client_id.trim().is_empty() {
             settings.client_id = Self::default().client_id;
+        } else if RETIRED_CLIENT_IDS.contains(&settings.client_id.trim()) {
+            settings.client_id = Self::default().client_id;
+            settings.accounts.clear();
+            settings.legacy_account = None;
+        }
+        if let Some(old) = settings.legacy_account.take() {
+            if !settings.accounts.iter().any(|a| a.uuid == old.uuid) {
+                settings.accounts.insert(0, old);
+            }
+        }
+        if !settings.accounts.iter().any(|a| a.uuid == settings.active_account) {
+            settings.active_account = settings
+                .accounts
+                .first()
+                .map_or_else(String::new, |a| a.uuid.clone());
         }
         if !settings.server.trim().is_empty() {
             let address = std::mem::take(&mut settings.server);
@@ -117,6 +142,30 @@ impl Settings {
             }
         }
         settings
+    }
+
+    pub fn active_saved(&self) -> Option<&SavedAccount> {
+        self.accounts.iter().find(|a| a.uuid == self.active_account)
+    }
+
+    pub fn remember(&mut self, account: SavedAccount) {
+        self.active_account = account.uuid.clone();
+        match self.accounts.iter_mut().find(|a| a.uuid == account.uuid) {
+            Some(existing) => *existing = account,
+            None => self.accounts.push(account),
+        }
+    }
+
+    pub fn forget(&mut self, uuid: &str) -> Option<SavedAccount> {
+        let at = self.accounts.iter().position(|a| a.uuid == uuid)?;
+        let removed = self.accounts.remove(at);
+        if self.active_account == uuid {
+            self.active_account = self
+                .accounts
+                .first()
+                .map_or_else(String::new, |a| a.uuid.clone());
+        }
+        Some(removed)
     }
 
     pub fn active_version(&self) -> &str {
@@ -165,7 +214,7 @@ mod tests {
             address: "example.org:25570".into(),
             version: "26.2".into(),
         });
-        settings.account = Some(SavedAccount {
+        settings.remember(SavedAccount {
             name: "Alex".into(),
             uuid: "069a79f444e94726a5befca90e38aaf5".into(),
             refresh_token: "r".into(),
@@ -228,9 +277,61 @@ mod tests {
     }
 
     #[test]
+    fn the_single_saved_account_of_older_versions_becomes_the_list() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("old.json");
+        std::fs::write(
+            &path,
+            r#"{"account":{"name":"Old","uuid":"u1","refresh_token":""}}"#,
+        )
+        .unwrap();
+        let loaded = Settings::load(&path);
+        assert_eq!(loaded.accounts.len(), 1);
+        assert_eq!(loaded.active_saved().unwrap().name, "Old");
+        assert!(!serde_json::to_string(&loaded).unwrap().contains("\"account\""));
+    }
+
+    #[test]
+    fn accounts_are_added_switched_and_forgotten() {
+        let acct = |n: &str, u: &str| SavedAccount {
+            name: n.into(),
+            uuid: u.into(),
+            refresh_token: "r".into(),
+        };
+        let mut s = Settings::default();
+        s.remember(acct("A", "1"));
+        s.remember(acct("B", "2"));
+        assert_eq!(s.active_saved().unwrap().name, "B");
+        s.remember(acct("A2", "1"));
+        assert_eq!(s.accounts.len(), 2);
+        assert_eq!(s.active_saved().unwrap().name, "A2");
+        assert!(s.forget("1").is_some());
+        assert_eq!(s.active_saved().unwrap().name, "B");
+        s.forget("2");
+        assert!(s.active_saved().is_none());
+        assert!(s.forget("2").is_none());
+    }
+
+    #[test]
     fn an_out_of_range_selection_means_no_server() {
         let mut settings = Settings::default();
         settings.selected_server = 9;
         assert_eq!(settings.active_server(), "");
+    }
+
+    #[test]
+    fn a_retired_client_id_in_the_saved_settings_is_replaced() {
+        let dir = std::env::temp_dir().join(format!("belumi-retired-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("launcher.json");
+        std::fs::write(
+            &path,
+            r#"{"client_id":"594ada3c-f3ab-4d1e-a381-9a8d80b6dd72","account":{"name":"a","uuid":"b","refresh_token":"c"}}"#,
+        )
+        .unwrap();
+        let loaded = Settings::load(&path);
+        assert_eq!(loaded.client_id, Settings::default().client_id);
+        assert!(loaded.accounts.is_empty());
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

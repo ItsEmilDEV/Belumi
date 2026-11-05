@@ -53,6 +53,7 @@ pub struct Init {
     pub groups: bool,
     pub voice_host: String,
     pub allow_recording: bool,
+    pub legacy: bool,
 }
 
 struct Reader<'a>(&'a [u8]);
@@ -130,11 +131,16 @@ fn put_utf(out: &mut Vec<u8>, s: &str) {
 }
 
 pub fn parse_secret(payload: &[u8]) -> Result<Init, ProtocolError> {
+    parse_secret_with(payload, true).or_else(|first| parse_secret_with(payload, false).map_err(|_| first))
+}
+
+fn parse_secret_with(payload: &[u8], with_connection_id: bool) -> Result<Init, ProtocolError> {
     let mut r = Reader(payload);
     let secret: [u8; 16] = r.take(16)?.try_into().unwrap();
-    let connection_id = r.uuid()?;
+    let connection_id = if with_connection_id { Some(r.uuid()?) } else { None };
     let port = r.i32()?;
     let player = r.uuid()?;
+    let connection_id = connection_id.unwrap_or(player);
     let codec = match r.u8()? {
         0 => Codec::Voip,
         1 => Codec::Audio,
@@ -147,6 +153,9 @@ pub fn parse_secret(payload: &[u8]) -> Result<Init, ProtocolError> {
     let groups = r.u8()? != 0;
     let voice_host = r.utf(256)?;
     let allow_recording = r.u8()? != 0;
+    if !r.0.is_empty() {
+        return Err(ProtocolError::Range);
+    }
     Ok(Init {
         secret,
         connection_id,
@@ -159,12 +168,15 @@ pub fn parse_secret(payload: &[u8]) -> Result<Init, ProtocolError> {
         groups,
         voice_host,
         allow_recording,
+        legacy: !with_connection_id,
     })
 }
 
 pub fn encode_secret(init: &Init) -> Vec<u8> {
     let mut out = init.secret.to_vec();
-    out.extend_from_slice(&init.connection_id.to_be_bytes());
+    if !init.legacy {
+        out.extend_from_slice(&init.connection_id.to_be_bytes());
+    }
     out.extend_from_slice(&i32::from(init.server_port).to_be_bytes());
     out.extend_from_slice(&init.player.to_be_bytes());
     out.push(match init.codec {
@@ -279,6 +291,9 @@ fn put_category(flags: &mut u8, c: &Option<String>) {
 }
 
 fn nonce(r: &mut Reader<'_>) -> Result<[u8; NONCE_SIZE], ProtocolError> {
+    if r.0.is_empty() {
+        return Ok([0; NONCE_SIZE]);
+    }
     Ok(r.take(NONCE_SIZE)?.try_into().unwrap())
 }
 
@@ -358,6 +373,10 @@ pub fn decode_packet(plain: &[u8]) -> Result<Packet, ProtocolError> {
 }
 
 pub fn encode_packet(packet: &Packet) -> Vec<u8> {
+    encode_packet_with(packet, true)
+}
+
+pub fn encode_packet_with(packet: &Packet, nonces: bool) -> Vec<u8> {
     let mut o = Vec::new();
     match packet {
         Packet::Mic {
@@ -439,7 +458,9 @@ pub fn encode_packet(packet: &Packet) -> Vec<u8> {
         Packet::Authenticate => o.push(0x5),
         Packet::AuthenticateAck(n) => {
             o.push(0x6);
-            o.extend_from_slice(n);
+            if nonces {
+                o.extend_from_slice(n);
+            }
         }
         Packet::Ping { id, timestamp } => {
             o.push(0x7);
@@ -449,7 +470,9 @@ pub fn encode_packet(packet: &Packet) -> Vec<u8> {
         Packet::KeepAlive => o.push(0x8),
         Packet::ConnectionCheck(n) => {
             o.push(0x9);
-            o.extend_from_slice(n);
+            if nonces {
+                o.extend_from_slice(n);
+            }
         }
         Packet::ConnectionCheckAck => o.push(0xA),
     }
@@ -479,7 +502,15 @@ pub fn decrypt(secret: &[u8; 16], payload: &[u8]) -> Result<Vec<u8>, ProtocolErr
 }
 
 pub fn client_datagram(init: &Init, packet: &Packet) -> Vec<u8> {
-    let sealed = encrypt(&init.secret, &encode_packet(packet));
+    let plain = if init.legacy && matches!(packet, Packet::Authenticate) {
+        let mut o = vec![0x5];
+        o.extend_from_slice(&init.player.to_be_bytes());
+        o.extend_from_slice(&init.secret);
+        o
+    } else {
+        encode_packet_with(packet, !init.legacy)
+    };
+    let sealed = encrypt(&init.secret, &plain);
     let mut out = vec![MAGIC];
     out.extend_from_slice(&init.connection_id.to_be_bytes());
     put_bytes(&mut out, &sealed);
@@ -496,7 +527,7 @@ pub fn read_server_datagram(init: &Init, datagram: &[u8]) -> Result<Packet, Prot
 }
 
 pub fn server_datagram(init: &Init, packet: &Packet) -> Vec<u8> {
-    let sealed = encrypt(&init.secret, &encode_packet(packet));
+    let sealed = encrypt(&init.secret, &encode_packet_with(packet, !init.legacy));
     let mut out = vec![MAGIC];
     put_bytes(&mut out, &sealed);
     out
@@ -530,6 +561,7 @@ pub(crate) fn sample_init() -> Init {
         groups: true,
         voice_host: "voice.example.org:24454".into(),
         allow_recording: true,
+        legacy: false,
     }
 }
 
@@ -545,6 +577,20 @@ mod tests {
         small.mtu = 5;
         assert_eq!(parse_secret(&encode_secret(&small)).unwrap().mtu, 512);
         assert_eq!(parse_secret(&[0; 5]), Err(ProtocolError::Short));
+        let mut real = init.secret.to_vec();
+        real.extend_from_slice(&i32::from(init.server_port).to_be_bytes());
+        real.extend_from_slice(&init.player.to_be_bytes());
+        real.push(0);
+        real.extend_from_slice(&init.mtu.to_be_bytes());
+        real.extend_from_slice(&init.distance.to_be_bytes());
+        real.extend_from_slice(&init.keep_alive_ms.to_be_bytes());
+        real.push(1);
+        put_utf(&mut real, &init.voice_host);
+        real.push(1);
+        let parsed = parse_secret(&real).unwrap();
+        assert_eq!(parsed.connection_id, init.player);
+        assert_eq!(parsed.server_port, init.server_port);
+        assert_eq!(parsed.voice_host, init.voice_host);
     }
 
     #[test]
@@ -628,5 +674,29 @@ mod tests {
         let k = [1u8; 16];
         assert_ne!(encrypt(&k, b"same"), encrypt(&k, b"same"));
         assert_eq!(decrypt(&k, &encrypt(&k, b"hello")).unwrap(), b"hello");
+    }
+
+    #[test]
+    fn legacy_servers_send_no_nonces() {
+        let mut init = sample_init();
+        init.legacy = true;
+        let wire = server_datagram(&init, &Packet::AuthenticateAck([9; 16]));
+        assert_eq!(read_server_datagram(&init, &wire).unwrap(), Packet::AuthenticateAck([0; 16]));
+        let check = client_datagram(&init, &Packet::ConnectionCheck([9; 16]));
+        let modern = client_datagram(&sample_init(), &Packet::ConnectionCheck([9; 16]));
+        assert_eq!(modern.len() - check.len(), 16);
+    }
+
+    #[test]
+    fn legacy_authentication_carries_the_player_and_secret() {
+        let mut init = sample_init();
+        init.legacy = true;
+        let wire = client_datagram(&init, &Packet::Authenticate);
+        let mut r = Reader(&wire);
+        assert_eq!(r.u8().unwrap(), MAGIC);
+        assert_eq!(r.uuid().unwrap(), init.connection_id);
+        let plain = decrypt(&init.secret, &r.bytes(MAX_PACKET).unwrap()).unwrap();
+        assert_eq!(plain.len(), 1 + 16 + 16);
+        assert_eq!(&plain[17..], &init.secret);
     }
 }

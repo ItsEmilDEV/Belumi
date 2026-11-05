@@ -116,7 +116,10 @@ pub fn voice_address(init: &Init, server_host: &str) -> Result<SocketAddr, Voice
     target
         .to_socket_addrs()
         .ok()
-        .and_then(|mut a| a.next())
+        .and_then(|a| {
+            let all: Vec<SocketAddr> = a.collect();
+            all.iter().copied().find(SocketAddr::is_ipv4).or_else(|| all.first().copied())
+        })
         .ok_or(VoiceError::Resolve(target))
 }
 
@@ -153,7 +156,10 @@ pub struct VoiceClient {
     shared: Arc<Shared>,
     mic_in: SyncSender<Vec<i16>>,
     threads: Vec<JoinHandle<()>>,
-    _devices: Vec<Running>,
+    capture: Option<Running>,
+    _playback: Option<Running>,
+    mic_name: Option<String>,
+    audio: AudioMode,
 }
 
 impl VoiceClient {
@@ -162,6 +168,7 @@ impl VoiceClient {
         server_host: &str,
         audio: AudioMode,
         settings: VoiceSettings,
+        microphone: Option<String>,
     ) -> Result<Self, VoiceError> {
         let addr = voice_address(&init, server_host)?;
         let socket = UdpSocket::bind(if addr.is_ipv6() { "[::]:0" } else { "0.0.0.0:0" })?;
@@ -181,15 +188,15 @@ impl VoiceClient {
         });
         let socket = Arc::new(socket);
         let (mic_tx, mic_rx) = sync_channel::<Vec<i16>>(32);
-        let mut devices = Vec::new();
+        let (mut capture, mut playback) = (None, None);
         if audio == AudioMode::Devices {
-            match device::start_capture(mic_tx.clone()) {
-                Ok(r) => devices.push(r),
+            match device::start_capture(mic_tx.clone(), microphone.clone()) {
+                Ok(r) => capture = Some(r),
                 Err(e) => shared.note(format!("Microphone unavailable: {e}")),
             }
             let (done, _) = channel();
             match device::start_playback(shared.mixer.clone(), done) {
-                Ok(r) => devices.push(r),
+                Ok(r) => playback = Some(r),
                 Err(e) => shared.note(format!("Speaker unavailable: {e}")),
             }
         }
@@ -209,8 +216,27 @@ impl VoiceClient {
             shared,
             mic_in: mic_tx,
             threads: vec![net, mic],
-            _devices: devices,
+            capture,
+            _playback: playback,
+            mic_name: microphone,
+            audio,
         })
+    }
+
+    pub fn microphone(&self) -> Option<&str> {
+        self.mic_name.as_deref()
+    }
+
+    pub fn set_microphone(&mut self, device: Option<String>) {
+        if device == self.mic_name || self.audio != AudioMode::Devices {
+            return;
+        }
+        self.capture = None;
+        self.mic_name = device.clone();
+        match device::start_capture(self.mic_in.clone(), device) {
+            Ok(r) => self.capture = Some(r),
+            Err(e) => self.shared.note(format!("Microphone unavailable: {e}")),
+        }
     }
 
     pub fn state(&self) -> State {
@@ -276,7 +302,8 @@ impl VoiceClient {
         for t in self.threads.drain(..) {
             let _ = t.join();
         }
-        self._devices.clear();
+        self.capture = None;
+        self._playback = None;
         if let Ok(mut m) = self.shared.mixer.lock() {
             m.clear();
         }
@@ -548,7 +575,7 @@ mod tests {
     #[test]
     fn the_client_authenticates_connects_plays_sound_and_sends_the_microphone() {
         let fake = Fake::new();
-        let client = VoiceClient::start(fake.init.clone(), "127.0.0.1:25565", AudioMode::None, VoiceSettings::default()).unwrap();
+        let client = VoiceClient::start(fake.init.clone(), "127.0.0.1:25565", AudioMode::None, VoiceSettings::default(), None).unwrap();
         let mut peer = None;
         for _ in 0..40 {
             if let Some((from, p)) = fake.read() {
@@ -617,7 +644,7 @@ mod tests {
     #[test]
     fn a_silent_server_after_connecting_fails_the_connection() {
         let fake = Fake::new();
-        let client = VoiceClient::start(fake.init.clone(), "127.0.0.1", AudioMode::None, VoiceSettings::default()).unwrap();
+        let client = VoiceClient::start(fake.init.clone(), "127.0.0.1", AudioMode::None, VoiceSettings::default(), None).unwrap();
         for _ in 0..40 {
             if let Some((from, p)) = fake.read() {
                 match p {
@@ -648,6 +675,7 @@ mod tests {
             "127.0.0.1",
             AudioMode::None,
             VoiceSettings { muted: true, ..VoiceSettings::default() },
+            None,
         )
         .unwrap();
         for _ in 0..40 {

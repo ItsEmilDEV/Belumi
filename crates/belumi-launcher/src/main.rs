@@ -1,5 +1,6 @@
 mod auth;
 mod game;
+mod heads;
 mod prism;
 mod secret;
 mod settings;
@@ -25,6 +26,7 @@ enum Event {
     Started,
     Exited(String),
     Update(Option<update::Release>),
+    Head(String, Option<Vec<u8>>),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -48,6 +50,7 @@ struct App {
     prism_expires: Option<u64>,
     prism_modified: Option<SystemTime>,
     last_prism_check: Instant,
+    last_renewal_try: Instant,
     code: Option<DeviceCode>,
     status: String,
     busy: bool,
@@ -62,6 +65,10 @@ struct App {
     tx: Sender<Event>,
     rx: Receiver<Event>,
     update: Option<update::Release>,
+    heads_dir: PathBuf,
+    head_pixels: std::collections::HashMap<String, Vec<u8>>,
+    head_textures: std::collections::HashMap<String, egui::TextureHandle>,
+    head_asked: std::collections::HashSet<String>,
 }
 
 impl App {
@@ -71,13 +78,19 @@ impl App {
         let settings = Settings::load(&settings_path);
         let (tx, rx) = channel();
         let mut settings = settings;
-        if let Some(saved) = settings.account.as_mut() {
+        for saved in &mut settings.accounts {
             if saved.refresh_token.is_empty() {
-                match secret::lookup(&saved.uuid) {
-                    Some(token) => saved.refresh_token = token,
-                    None => settings.account = None,
+                if let Some(token) = secret::lookup(&saved.uuid) {
+                    saved.refresh_token = token;
                 }
             }
+        }
+        settings.accounts.retain(|a| !a.refresh_token.is_empty());
+        if settings.active_saved().is_none() {
+            settings.active_account = settings
+                .accounts
+                .first()
+                .map_or_else(String::new, |a| a.uuid.clone());
         }
         let mut app = Self {
             settings,
@@ -88,6 +101,7 @@ impl App {
             prism_expires: None,
             prism_modified: None,
             last_prism_check: Instant::now(),
+            last_renewal_try: Instant::now(),
             code: None,
             status: "Not signed in.".into(),
             busy: false,
@@ -102,9 +116,13 @@ impl App {
             tx,
             rx,
             update: None,
+            heads_dir: paths.config_dir().join("heads"),
+            head_pixels: Default::default(),
+            head_textures: Default::default(),
+            head_asked: Default::default(),
         };
         app.check_for_update();
-        if app.settings.account.is_some() && !app.settings.client_id.trim().is_empty() {
+        if app.settings.active_saved().is_some() && !app.settings.client_id.trim().is_empty() {
             app.renew();
         } else if app.settings.use_prism {
             app.import_prism(false);
@@ -124,9 +142,38 @@ impl App {
         });
     }
 
+    fn head_texture(&mut self, ctx: &egui::Context, uuid: &str) -> Option<egui::TextureHandle> {
+        if uuid.is_empty() {
+            return None;
+        }
+        if !self.head_asked.contains(uuid) {
+            self.head_asked.insert(uuid.to_owned());
+            if let Some(cached) = heads::cached(&self.heads_dir, uuid) {
+                self.head_pixels.insert(uuid.to_owned(), cached);
+            }
+            if heads::is_stale(&self.heads_dir, uuid) {
+                let (tx, dir, uuid, ctx) =
+                    (self.tx.clone(), self.heads_dir.clone(), uuid.to_owned(), ctx.clone());
+                std::thread::spawn(move || {
+                    let head = heads::fetch_and_store(&dir, &uuid);
+                    let _ = tx.send(Event::Head(uuid, head));
+                    ctx.request_repaint();
+                });
+            }
+        }
+        if let Some(texture) = self.head_textures.get(uuid) {
+            return Some(texture.clone());
+        }
+        let pixels = self.head_pixels.get(uuid)?;
+        let image = egui::ColorImage::from_rgba_unmultiplied([heads::SIZE, heads::SIZE], pixels);
+        let texture = ctx.load_texture(format!("head-{uuid}"), image, egui::TextureOptions::NEAREST);
+        self.head_textures.insert(uuid.to_owned(), texture.clone());
+        Some(texture)
+    }
+
     fn save(&mut self) {
         let mut on_disk = self.settings.clone();
-        if let Some(saved) = on_disk.account.as_mut() {
+        for saved in &mut on_disk.accounts {
             if !saved.refresh_token.is_empty() && secret::store(&saved.uuid, &saved.refresh_token) {
                 saved.refresh_token.clear();
             }
@@ -176,7 +223,8 @@ impl App {
     }
 
     fn renew(&mut self) {
-        let (Ok(client_id), Some(saved)) = (self.client_id(), self.settings.account.clone()) else {
+        let (Ok(client_id), Some(saved)) = (self.client_id(), self.settings.active_saved().cloned())
+        else {
             return;
         };
         self.busy = true;
@@ -209,6 +257,7 @@ impl App {
                     uuid: p.uuid,
                     access_token: p.access_token,
                     refresh_token: String::new(),
+                    expires_at: p.expires_at,
                 });
             }
             Err(e) => {
@@ -248,16 +297,62 @@ impl App {
         self.source = None;
         self.prism_expires = None;
         self.account = None;
-        if let Some(saved) = self.settings.account.take() {
-            secret::clear(&saved.uuid);
+        if let Some(uuid) = self.settings.active_saved().map(|a| a.uuid.clone()) {
+            self.settings.forget(&uuid);
+            secret::clear(&uuid);
         }
         self.code = None;
         self.cancel.store(true, Ordering::Relaxed);
         self.status = "Signed out.".into();
         self.save();
+        if self.settings.active_saved().is_some() {
+            self.renew();
+        }
     }
 
-    fn play(&mut self, online: bool) {
+    fn switch_account(&mut self, uuid: &str) {
+        if self.busy || self.settings.accounts.iter().all(|a| a.uuid != uuid) {
+            return;
+        }
+        self.settings.use_prism = false;
+        self.settings.active_account = uuid.to_owned();
+        self.account = None;
+        self.source = None;
+        self.prism_expires = None;
+        self.save();
+        self.renew();
+    }
+
+    fn remove_account(&mut self, uuid: &str) {
+        if self.settings.active_account == uuid {
+            self.account = None;
+            self.source = None;
+        }
+        if self.settings.forget(uuid).is_some() {
+            secret::clear(uuid);
+            self.status = "Account removed.".into();
+        }
+        self.save();
+        if self.account.is_none() && self.settings.active_saved().is_some() {
+            self.renew();
+        }
+    }
+
+    fn watch_renewal(&mut self) {
+        let due = self.source == Some(Source::Own)
+            && !self.busy
+            && self.last_renewal_try.elapsed() > Duration::from_secs(120)
+            && self
+                .account
+                .as_ref()
+                .is_some_and(|a| a.expires_at <= unix_now() + 900);
+        if due {
+            self.last_renewal_try = Instant::now();
+            self.renew();
+        }
+    }
+
+    fn play(&mut self, online: bool, join: bool) {
         if online && self.source == Some(Source::Prism) {
             self.import_prism(false);
         }
@@ -273,7 +368,7 @@ impl App {
             let _ = std::fs::create_dir_all(dir);
         }
         let log = std::fs::File::create(&self.log_path).ok();
-        match game::launch(&self.settings, account.as_ref(), log) {
+        match game::launch(&self.settings, account.as_ref(), join, log) {
             Ok(mut child) => {
                 self.playing = true;
                 self.status = "Game started.".into();
@@ -303,7 +398,7 @@ impl App {
                     self.busy = false;
                     self.code = None;
                     self.status = format!("Signed in as {}.", account.name);
-                    self.settings.account = Some(SavedAccount {
+                    self.settings.remember(SavedAccount {
                         name: account.name.clone(),
                         uuid: account.uuid.clone(),
                         refresh_token: account.refresh_token.clone(),
@@ -321,6 +416,12 @@ impl App {
                         if self.account.is_some() {
                             self.status = format!("{} ({e})", self.status);
                         }
+                    }
+                }
+                Event::Head(uuid, head) => {
+                    if let Some(head) = head {
+                        self.head_textures.remove(&uuid);
+                        self.head_pixels.insert(uuid, head);
                     }
                 }
                 Event::Started => {}

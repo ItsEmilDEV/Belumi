@@ -8,23 +8,23 @@ extras) are on the same page as quick toggles.
 |---|---|---|
 | HUD | | Corner overlay: FPS, coordinates, compass heading, ping, speed |
 | Zoom | C (hold) | Narrows the field of view; the wheel adjusts it while held; smooth easing |
-| Minimap | | Corner map with height shading, round or square, rotating or north up |
+| Minimap | | Corner map with height shading, round or square, rotating or north up; dots for players (white), hostile mobs (red), neutral mobs (yellow) and animals (green), switchable under Maps |
 | World map | M | Full-screen overlay of everything you explored, saved per world and server, wheel zooms |
 | Waypoints | B | Saves your position; `/waypoint add [name]`, `remove NAME`, `list`, `clear`; labels in the world, on the maps and a nearest list |
 | Packet inspector | F8 | Live packet rates and sizes, top packets by bytes, the latest packets |
-| Freecam | F9 | Detaches the camera, you stay put; WASD, Space, Shift, Ctrl for speed, the wheel changes speed |
+| Freecam | F9 | Detaches the camera and blocks all movement input of the player; WASD, Space, Shift, Ctrl for speed, the wheel changes speed |
 | Screen effects | | Vignette, saturation, contrast, colour temperature, sharpen, film grain ([effects.md](effects.md)) |
 | Client plugins | | WebAssembly plugins from `belumi-plugins/` ([client-plugins.md](client-plugins.md)) |
 | Voice chat | V (push to talk), K (mute) | Simple Voice Chat compatible ([voice-chat.md](voice-chat.md)) |
 
 ## Builds and features
 
-The plugin host and voice chat are cargo features of `horizon-client` so the default build stays small:
+The plugin host and voice chat are cargo features of `horizon-client`, on by default since the launcher starts that build:
 
 ```sh
 cd vendor/horizon
-cargo build --profile fast -p horizon-client                                          # core features
-cargo build --profile fast -p horizon-client --features belumi-plugins,belumi-voice   # plugins and voice chat (needs libopus)
+cargo build --profile fast -p horizon-client                                          # includes plugins and voice chat (needs libopus)
+cargo build --profile fast -p horizon-client --no-default-features                    # without audio, controllers, plugins and voice
 ```
 
 With the switch on but the feature missing, the game says so in chat once.
@@ -50,4 +50,5 @@ when you moved half a map pixel or explored something new, and at most every thi
 - The world map shows the surface; caves and the Nether are not mapped.
 - Freecam keeps the render distance of your body: it stays within that range.
 - The in-world waypoint labels assume the default projection and ignore the small speed-based field of view changes.
-- Voice chat has not been tried against a live Simple Voice Chat server ([voice-chat.md](voice-chat.md#status)).
+- Voice chat connects to live Simple Voice Chat servers; audio has not been checked by ear ([voice-chat.md](voice-chat.md#status)).
+- Shader packs read the player's choices from `shaderpacks/<pack>.zip.txt` (`NAME=value`; switches `true` or `false`). Solas runs without its floodfill and voxel lighting (`VX_SUPPORT` stays undefined until 3D images exist), so there is no coloured block light.

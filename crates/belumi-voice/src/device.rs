@@ -75,11 +75,30 @@ fn spawn_stream(
     }
 }
 
-pub fn start_capture(frames: SyncSender<Vec<i16>>) -> Result<Running, DeviceError> {
+pub fn input_devices() -> Vec<String> {
+    let host = cpal::default_host();
+    let mut names: Vec<String> = host
+        .input_devices()
+        .map(|d| d.filter_map(|d| d.name().ok()).collect())
+        .unwrap_or_default();
+    names.sort();
+    names.dedup();
+    names
+}
+
+pub fn start_capture(
+    frames: SyncSender<Vec<i16>>,
+    wanted: Option<String>,
+) -> Result<Running, DeviceError> {
     spawn_stream(move || {
         let host = cpal::default_host();
-        let device = host
-            .default_input_device()
+        let chosen = wanted.as_deref().and_then(|name| {
+            host.input_devices()
+                .ok()?
+                .find(|d| d.name().is_ok_and(|n| n == name))
+        });
+        let device = chosen
+            .or_else(|| host.default_input_device())
             .ok_or(DeviceError::Missing("microphone"))?;
         let config = device
             .default_input_config()

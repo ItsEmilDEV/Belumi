@@ -36,6 +36,7 @@ pub struct Account {
     pub uuid: String,
     pub access_token: String,
     pub refresh_token: String,
+    pub expires_at: u64,
 }
 
 fn agent() -> ureq::Agent {
@@ -228,6 +229,10 @@ pub fn minecraft_account(ms: &MsTokens) -> Result<Account, String> {
         uuid: profile["id"].as_str().ok_or("No profile id")?.to_owned(),
         access_token,
         refresh_token: ms.refresh_token.clone(),
+        expires_at: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs())
+            + login["expires_in"].as_u64().unwrap_or(3600),
     })
 }
 
