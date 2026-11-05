@@ -33,6 +33,7 @@ cargo run --release -p belumi-launcher   # or: cargo run -p belumi-launcher
 - A first-start check lists a missing game file, missing prepared resources, an unwritable game folder or a missing
   Vulkan driver, with the path and what to do.
 - Drop a shader pack `.zip` on the window to copy it into the game's `shaderpacks` folder.
+- Game log -> Run diagnose (or `belumi-launcher --diagnose`) collects a support report: see [diagnose.md](diagnose.md).
 - The launcher speaks English and German (Settings, or by the system language).
 
 ## Looks
