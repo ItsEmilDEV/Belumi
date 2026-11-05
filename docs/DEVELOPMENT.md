@@ -261,5 +261,5 @@ and the installer to the GitHub release. The files are not code-signed yet, so W
 What differs from Linux: the Microsoft sign-in is kept in the Windows Credential Manager (a token it refuses is kept
 in an owner-only file under `%APPDATA%\Belumi`), the browser opens through `rundll32`, the game folder defaults to
 the launcher's working directory, and the Vulkan check is skipped (the game falls back to DirectX 12). Voice chat
-needs the Opus library at build time (`belumi-voice`); the Windows release builds without the `belumi-voice` feature
-until the Opus build is wired into CI.
+(`belumi-voice`) builds the Opus library from source with CMake, which GitHub's Windows runners and a Visual Studio
+install provide; if that fails on your machine, build the client with `--no-default-features --features audio,controllers,belumi,belumi-plugins`.
