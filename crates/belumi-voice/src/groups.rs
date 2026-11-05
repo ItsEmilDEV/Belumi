@@ -1,6 +1,8 @@
 use crate::protocol::{ProtocolError, Reader, Uuid, put_utf};
 use std::collections::HashMap;
 
+/// Players and groups kept; a server that sends more is ignored past this.
+const MAX_ENTRIES: usize = 20_000;
 pub const MAX_GROUP_NAME: usize = 24;
 pub const MAX_GROUP_PASSWORD: usize = 256;
 
@@ -132,7 +134,7 @@ fn read_states(
     if !(0..=100_000).contains(&count) {
         return Err(ProtocolError::Range);
     }
-    let mut all = Vec::with_capacity(count as usize);
+    let mut all = Vec::with_capacity((count as usize).min(r.0.len() / 18 + 1));
     for _ in 0..count {
         all.push(read(&mut r)?);
     }
@@ -235,19 +237,21 @@ impl Roster {
                 if s.uuid == me {
                     self.my_group = s.group;
                 }
-                self.players.insert(s.uuid, s);
+                if self.players.len() < MAX_ENTRIES || self.players.contains_key(&s.uuid) {
+                    self.players.insert(s.uuid, s);
+                }
             }
             Incoming::States(all) => {
                 self.players = all.into_iter().map(|s| (s.uuid, s)).collect();
-                if let Some(mine) = self.players.get(&me) {
-                    self.my_group = mine.group;
-                }
+                self.my_group = self.players.get(&me).and_then(|mine| mine.group);
             }
             Incoming::RemoveState(id) => {
                 self.players.remove(&id);
             }
             Incoming::AddGroup(g) => {
-                self.groups.insert(g.id, g);
+                if self.groups.len() < MAX_ENTRIES || self.groups.contains_key(&g.id) {
+                    self.groups.insert(g.id, g);
+                }
             }
             Incoming::RemoveGroup(id) => {
                 self.groups.remove(&id);

@@ -71,7 +71,10 @@ fn spawn_stream(
             let _ = thread.join();
             Err(e)
         }
-        Err(_) => Err(DeviceError::Backend("the audio device did not start".into())),
+        Err(_) => {
+            stop.store(true, Ordering::Relaxed);
+            Err(DeviceError::Backend("the audio device did not start".into()))
+        }
     }
 }
 
@@ -249,6 +252,10 @@ impl Player {
         }
         for (i, frame) in out.chunks_exact_mut(self.channels).enumerate() {
             let (l, r) = (self.ready[i * 2], self.ready[i * 2 + 1]);
+            if self.channels == 1 {
+                frame[0] = (l + r) / 2.0;
+                continue;
+            }
             for (c, o) in frame.iter_mut().enumerate() {
                 *o = match c {
                     0 => l,

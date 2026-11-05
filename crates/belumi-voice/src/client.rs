@@ -336,6 +336,7 @@ fn net_loop(shared: &Shared, socket: &UdpSocket, addr: SocketAddr) {
     let mut last_hello: Option<Instant> = None;
     let mut last_keepalive = Instant::now();
     let mut connected = false;
+    let started = Instant::now();
     let mut channels: HashMap<Uuid, Channel> = HashMap::new();
     let timeout = Duration::from_millis(u64::try_from(shared.init.keep_alive_ms.max(500)).unwrap_or(1000) * 10);
     while !shared.stop.load(Ordering::Relaxed) {
@@ -345,6 +346,12 @@ fn net_loop(shared: &Shared, socket: &UdpSocket, addr: SocketAddr) {
                 None => send(shared, socket, addr, &Packet::Authenticate),
                 Some(n) => send(shared, socket, addr, &Packet::ConnectionCheck(n)),
             }
+        }
+        if !connected && started.elapsed() > Duration::from_secs(20) {
+            shared.set_state(State::Failed(
+                "The voice server did not answer (a firewall may block its UDP port).".into(),
+            ));
+            return;
         }
         if connected && last_keepalive.elapsed() > timeout {
             shared.set_state(State::Failed("The voice server stopped answering.".into()));
@@ -392,6 +399,9 @@ fn net_loop(shared: &Shared, socket: &UdpSocket, addr: SocketAddr) {
     }
 }
 
+/// Voices heard at once; a server that invents more is ignored.
+const MAX_CHANNELS: usize = 256;
+
 struct Channel {
     decoder: Decoder,
     last_sequence: i64,
@@ -412,6 +422,9 @@ fn play(shared: &Shared, channels: &mut HashMap<Uuid, Channel>, sound: &Sound) {
     let ch = match channels.get_mut(&id) {
         Some(c) => c,
         None => {
+            if channels.len() >= MAX_CHANNELS {
+                return;
+            }
             let Ok(decoder) = Decoder::new() else {
                 return;
             };
@@ -459,6 +472,9 @@ fn enqueue(shared: &Shared, sound: &Sound, frame: &[i16], volume: f32) {
         ),
     };
     drop(world);
+    if !(atten.is_finite() && gains.0.is_finite() && gains.1.is_finite() && volume.is_finite()) {
+        return;
+    }
     let personal = shared
         .player_volumes
         .lock()
