@@ -67,3 +67,13 @@ Locational sounds (a server plugin's sound sources) use their own position.
 
 Group management screens, per-player volume sliders, whispering and recording are not part of this module. The client
 never records audio.
+
+## Groups, per-player volume and status badges
+
+- `/voice groups`, `/voice group create NAME [PASSWORD]`, `/voice group join NAME|NUMBER [PASSWORD]`, `/voice group leave`
+  manage the Simple Voice Chat groups of the server. Names with spaces go in quotes. The current group shows in the voice HUD.
+- `/voice volume PLAYER 0-300` sets how loud one player sounds (`reset` or 100 clears it). The values live in `belumi.toml`.
+- `/voice players` lists the players with their voice state; `/voice mute` and `/voice deafen` (key: Deafen key) switch yours.
+- A badge over a player shows MUTED (microphone off), DEAF (voice chat off) or NO VOICE (not connected to the voice server).
+- Servers older than the flag-based state packets send two booleans per player; both formats are read. On those servers only
+  "deafened" is sent to the server, the microphone mute stays local.

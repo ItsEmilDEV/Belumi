@@ -2,6 +2,7 @@ pub mod client;
 pub mod codec;
 pub mod device;
 pub mod gate;
+pub mod groups;
 pub mod mixer;
 pub mod protocol;
 pub mod resample;

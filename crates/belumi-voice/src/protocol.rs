@@ -56,10 +56,10 @@ pub struct Init {
     pub legacy: bool,
 }
 
-struct Reader<'a>(&'a [u8]);
+pub(crate) struct Reader<'a>(pub(crate) &'a [u8]);
 
 impl<'a> Reader<'a> {
-    fn take(&mut self, n: usize) -> Result<&'a [u8], ProtocolError> {
+    pub(crate) fn take(&mut self, n: usize) -> Result<&'a [u8], ProtocolError> {
         if self.0.len() < n {
             return Err(ProtocolError::Short);
         }
@@ -67,25 +67,38 @@ impl<'a> Reader<'a> {
         self.0 = b;
         Ok(a)
     }
-    fn u8(&mut self) -> Result<u8, ProtocolError> {
+    pub(crate) fn bool(&mut self) -> Result<bool, ProtocolError> {
+        Ok(self.u8()? != 0)
+    }
+    pub(crate) fn i16(&mut self) -> Result<i16, ProtocolError> {
+        Ok(i16::from_be_bytes(self.take(2)?.try_into().unwrap()))
+    }
+    pub(crate) fn bool_strict(&mut self) -> Result<bool, ProtocolError> {
+        match self.u8()? {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(ProtocolError::Range),
+        }
+    }
+    pub(crate) fn u8(&mut self) -> Result<u8, ProtocolError> {
         Ok(self.take(1)?[0])
     }
-    fn i32(&mut self) -> Result<i32, ProtocolError> {
+    pub(crate) fn i32(&mut self) -> Result<i32, ProtocolError> {
         Ok(i32::from_be_bytes(self.take(4)?.try_into().unwrap()))
     }
-    fn i64(&mut self) -> Result<i64, ProtocolError> {
+    pub(crate) fn i64(&mut self) -> Result<i64, ProtocolError> {
         Ok(i64::from_be_bytes(self.take(8)?.try_into().unwrap()))
     }
-    fn f32(&mut self) -> Result<f32, ProtocolError> {
+    pub(crate) fn f32(&mut self) -> Result<f32, ProtocolError> {
         Ok(f32::from_be_bytes(self.take(4)?.try_into().unwrap()))
     }
-    fn f64(&mut self) -> Result<f64, ProtocolError> {
+    pub(crate) fn f64(&mut self) -> Result<f64, ProtocolError> {
         Ok(f64::from_be_bytes(self.take(8)?.try_into().unwrap()))
     }
-    fn uuid(&mut self) -> Result<Uuid, ProtocolError> {
+    pub(crate) fn uuid(&mut self) -> Result<Uuid, ProtocolError> {
         Ok(u128::from_be_bytes(self.take(16)?.try_into().unwrap()))
     }
-    fn varint(&mut self) -> Result<usize, ProtocolError> {
+    pub(crate) fn varint(&mut self) -> Result<usize, ProtocolError> {
         let mut value = 0usize;
         for i in 0..5 {
             let b = self.u8()?;
@@ -96,20 +109,20 @@ impl<'a> Reader<'a> {
         }
         Err(ProtocolError::Range)
     }
-    fn bytes(&mut self, max: usize) -> Result<Vec<u8>, ProtocolError> {
+    pub(crate) fn bytes(&mut self, max: usize) -> Result<Vec<u8>, ProtocolError> {
         let n = self.varint()?;
         if n > max {
             return Err(ProtocolError::Range);
         }
         Ok(self.take(n)?.to_vec())
     }
-    fn utf(&mut self, max: usize) -> Result<String, ProtocolError> {
+    pub(crate) fn utf(&mut self, max: usize) -> Result<String, ProtocolError> {
         let raw = self.bytes(max * 4)?;
         String::from_utf8(raw).map_err(|_| ProtocolError::Range)
     }
 }
 
-fn put_varint(out: &mut Vec<u8>, mut v: usize) {
+pub(crate) fn put_varint(out: &mut Vec<u8>, mut v: usize) {
     loop {
         let b = (v & 0x7F) as u8;
         v >>= 7;
@@ -121,12 +134,12 @@ fn put_varint(out: &mut Vec<u8>, mut v: usize) {
     }
 }
 
-fn put_bytes(out: &mut Vec<u8>, data: &[u8]) {
+pub(crate) fn put_bytes(out: &mut Vec<u8>, data: &[u8]) {
     put_varint(out, data.len());
     out.extend_from_slice(data);
 }
 
-fn put_utf(out: &mut Vec<u8>, s: &str) {
+pub(crate) fn put_utf(out: &mut Vec<u8>, s: &str) {
     put_bytes(out, s.as_bytes());
 }
 

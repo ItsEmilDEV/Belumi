@@ -75,6 +75,7 @@ struct Shared {
     sent: AtomicU32,
     received: AtomicU32,
     notes: Mutex<Vec<String>>,
+    player_volumes: Mutex<HashMap<Uuid, f32>>,
 }
 
 impl Shared {
@@ -185,6 +186,7 @@ impl VoiceClient {
             sent: AtomicU32::new(0),
             received: AtomicU32::new(0),
             notes: Mutex::new(Vec::new()),
+            player_volumes: Mutex::new(HashMap::new()),
         });
         let socket = Arc::new(socket);
         let (mic_tx, mic_rx) = sync_channel::<Vec<i16>>(32);
@@ -221,6 +223,12 @@ impl VoiceClient {
             mic_name: microphone,
             audio,
         })
+    }
+
+    pub fn set_player_volumes(&self, volumes: HashMap<Uuid, f32>) {
+        if let Ok(mut v) = self.shared.player_volumes.lock() {
+            *v = volumes;
+        }
     }
 
     pub fn microphone(&self) -> Option<&str> {
@@ -451,8 +459,14 @@ fn enqueue(shared: &Shared, sound: &Sound, frame: &[i16], volume: f32) {
         ),
     };
     drop(world);
+    let personal = shared
+        .player_volumes
+        .lock()
+        .ok()
+        .and_then(|v| v.get(&sound.sender()).copied())
+        .unwrap_or(1.0);
     if let Ok(mut m) = shared.mixer.lock() {
-        m.push(sound.channel(), frame, gains, volume * atten);
+        m.push(sound.channel(), frame, gains, volume * atten * personal);
     }
 }
 
