@@ -8,6 +8,7 @@ Mode: Operate. Surface: a 760x500 native window (egui). Three styles share one l
 |---|---|---|---|
 | bg | #0E1015 | gradient #14102A to #0B1220 | #3B3B3B stone, 16 px tile pattern |
 | panel (nav, status) | #14171E | #FFFFFF at 6% over bg | #2B2B2B |
+| nav / status bar | #14171E | #FFFFFF at 12% / 10% | planks #6F5230 with grain / dirt #4A3622 under a grass strip |
 | card | #1B1F29 | #FFFFFF at 8%, 1 px #FFFFFF at 14% edge | #4A4A4A with bevel |
 | card hover | #242936 | #FFFFFF at 12% | #5A5A5A |
 | text | #E6E8EE | #F0EEFA | #F2F2F2 |
@@ -45,3 +46,11 @@ Hover lifts the fill one step; pressed drops it; disabled keeps the label readab
 ## Do not
 
 Gradient text, side-stripe borders, nested cards, glass on text-heavy areas (the log stays solid in every style), icons drawn from glyphs.
+
+## Type faces
+
+Modern and Glass set everything in Inter (bundled, OFL). Minecraft sets everything in Pixelify Sans (bundled, OFL), titles with a 2 px black offset shadow. Both fall back to egui's default faces for glyphs they lack.
+
+## Layout (820 x 600, minimum 700 x 520)
+
+Navigation 176 px with drawn icons; content padded 22 / 18; status bar 34 px (40 with the Minecraft grass strip). The Play page reads who / go / where from top to bottom: account card, a 240 x 56 Play button with two quiet text actions beside it, one muted sentence saying what will start, then a segmented Servers / Worlds list whose rows are 46 px high.

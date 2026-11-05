@@ -1,9 +1,19 @@
 mod auth;
+mod cli;
+mod check;
+mod crash;
+mod fonts;
 mod game;
 mod heads;
+mod icons;
+mod i18n;
+mod kit;
+mod os;
 mod prism;
 mod secret;
 mod settings;
+mod worlds;
+mod status;
 mod theme;
 mod ui;
 mod update;
@@ -25,7 +35,8 @@ enum Event {
     SignedIn(Account),
     Failed(String),
     Started,
-    Exited(String),
+    Exited(String, Option<i32>),
+    Probed(String, Option<status::ServerStatus>),
     Update(Option<update::Release>),
     Head(String, Option<Vec<u8>>),
 }
@@ -71,6 +82,15 @@ struct App {
     head_pixels: std::collections::HashMap<String, Vec<u8>>,
     head_textures: std::collections::HashMap<String, egui::TextureHandle>,
     head_asked: std::collections::HashSet<String>,
+    pending_play: Option<(bool, game::Target)>,
+    crash: Option<crash::Report>,
+    probes: std::collections::HashMap<String, (status::Probe, Instant)>,
+    worlds: Vec<worlds::World>,
+    worlds_at: Option<Instant>,
+    checks: Vec<check::Check>,
+    window_cmd: Option<egui::ViewportCommand>,
+    play_list: usize,
+    add_server: bool,
 }
 
 impl App {
@@ -123,6 +143,15 @@ impl App {
             head_pixels: Default::default(),
             head_textures: Default::default(),
             head_asked: Default::default(),
+            pending_play: None,
+            crash: None,
+            probes: Default::default(),
+            worlds: Vec::new(),
+            worlds_at: None,
+            checks: Vec::new(),
+            window_cmd: None,
+            play_list: 0,
+            add_server: false,
         };
         app.check_for_update();
         if app.settings.active_saved().is_some() && !app.settings.client_id.trim().is_empty() {
@@ -355,14 +384,27 @@ impl App {
         }
     }
 
-    fn play(&mut self, online: bool, join: bool) {
+    fn play(&mut self, online: bool, target: game::Target) {
         if online && self.source == Some(Source::Prism) {
             self.import_prism(false);
+        }
+        if online
+            && matches!(target, game::Target::Server)
+            && let Some(server) = self.settings.servers.get(self.settings.selected_server)
+            && !server.account.is_empty()
+            && self.settings.active_account != server.account
+            && self.settings.accounts.iter().any(|a| a.uuid == server.account)
+        {
+            let wanted = server.account.clone();
+            self.pending_play = Some((online, target));
+            self.switch_account(&wanted);
+            self.status = i18n::tr("Switching to the account of this server...");
+            return;
         }
         let account = if online {
             match &self.account {
                 Some(account) => Some(account.clone()),
-                None => return self.status = "Sign in first (or play offline).".into(),
+                None => return self.status = i18n::tr("Sign in first (or play offline)."),
             }
         } else {
             None
@@ -370,23 +412,60 @@ impl App {
         if let Some(dir) = self.log_path.parent() {
             let _ = std::fs::create_dir_all(dir);
         }
+        self.crash = None;
         let log = std::fs::File::create(&self.log_path).ok();
-        match game::launch(&self.settings, account.as_ref(), join, log) {
+        match game::launch(&self.settings, account.as_ref(), &target, log) {
             Ok(mut child) => {
                 self.playing = true;
-                self.status = "Game started.".into();
+                self.status = i18n::tr("Game started.");
                 let tx = self.tx.clone();
                 let _ = tx.send(Event::Started);
+                match self.settings.after_start.as_str() {
+                    "minimize" => self.window_cmd = Some(egui::ViewportCommand::Minimized(true)),
+                    "close" => self.window_cmd = Some(egui::ViewportCommand::Close),
+                    _ => {}
+                }
                 std::thread::spawn(move || {
-                    let text = match child.wait() {
-                        Ok(status) => format!("The game ended ({status})."),
-                        Err(e) => format!("Lost the game process: {e}"),
+                    let (text, code) = match child.wait() {
+                        Ok(status) => (format!("The game ended ({status})."), status.code()),
+                        Err(e) => (format!("Lost the game process: {e}"), None),
                     };
-                    let _ = tx.send(Event::Exited(text));
+                    let _ = tx.send(Event::Exited(text, code));
                 });
             }
             Err(e) => self.status = e,
         }
+    }
+
+    fn probe_servers(&mut self) {
+        let due: Vec<String> = self
+            .settings
+            .servers
+            .iter()
+            .map(|s| s.address.trim().to_owned())
+            .filter(|a| !a.is_empty())
+            .filter(|a| {
+                self.probes
+                    .get(a)
+                    .is_none_or(|(p, at)| !matches!(p, status::Probe::Checking) && at.elapsed() >= Duration::from_secs(45))
+            })
+            .collect();
+        for address in due {
+            self.probes.insert(address.clone(), (status::Probe::Checking, Instant::now()));
+            let tx = self.tx.clone();
+            std::thread::spawn(move || {
+                let found = status::ping(&address, Duration::from_secs(3));
+                let _ = tx.send(Event::Probed(address, found));
+            });
+        }
+    }
+
+    fn refresh_worlds(&mut self) {
+        if self.worlds_at.is_some_and(|t| t.elapsed() < Duration::from_secs(5)) {
+            return;
+        }
+        self.worlds_at = Some(Instant::now());
+        self.worlds = worlds::scan(&worlds::game_dir(&self.settings.game_dir));
     }
 
     fn poll(&mut self) {
@@ -400,7 +479,7 @@ impl App {
                 Event::SignedIn(account) => {
                     self.busy = false;
                     self.code = None;
-                    self.status = format!("Signed in as {}.", account.name);
+                    self.status = i18n::trf("Signed in as {}.", &[&account.name]);
                     self.settings.remember(SavedAccount {
                         name: account.name.clone(),
                         uuid: account.uuid.clone(),
@@ -409,8 +488,12 @@ impl App {
                     self.account = Some(account);
                     self.source = Some(Source::Own);
                     self.save();
+                    if let Some((online, target)) = self.pending_play.take() {
+                        self.play(online, target);
+                    }
                 }
                 Event::Failed(e) => {
+                    self.pending_play = None;
                     self.busy = false;
                     self.code = None;
                     self.status = e.clone();
@@ -429,9 +512,18 @@ impl App {
                 }
                 Event::Started => {}
                 Event::Update(release) => self.update = release,
-                Event::Exited(text) => {
+                Event::Exited(text, code) => {
                     self.playing = false;
                     self.status = text;
+                    let log = std::fs::read_to_string(&self.log_path).unwrap_or_default();
+                    self.crash = crash::from_log(code, &log);
+                    if self.crash.is_some() {
+                        self.status = i18n::tr("The game stopped unexpectedly.");
+                    }
+                }
+                Event::Probed(address, found) => {
+                    let probe = found.map_or(status::Probe::Down, status::Probe::Up);
+                    self.probes.insert(address, (probe, Instant::now()));
                 }
             }
         }
@@ -439,6 +531,9 @@ impl App {
 }
 
 fn main() -> eframe::Result {
+    if let Some(code) = cli::run(std::env::args().skip(1)) {
+        std::process::exit(code);
+    }
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_app_id("belumi-launcher")
@@ -446,8 +541,8 @@ fn main() -> eframe::Result {
                 eframe::icon_data::from_png_bytes(include_bytes!("../assets/logo-256.png"))
                     .unwrap_or_default(),
             ))
-            .with_inner_size([760.0, 500.0])
-            .with_min_inner_size([620.0, 420.0]),
+            .with_inner_size([820.0, 600.0])
+            .with_min_inner_size([700.0, 520.0]),
         ..Default::default()
     };
     eframe::run_native("Belumi", options, Box::new(|_| Ok(Box::new(App::new()))))

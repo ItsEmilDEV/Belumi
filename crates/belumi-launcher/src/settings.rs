@@ -25,6 +25,8 @@ pub struct ServerEntry {
     pub address: String,
     #[serde(default)]
     pub version: String,
+    #[serde(default)]
+    pub account: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -47,6 +49,13 @@ pub struct Settings {
     pub check_updates: bool,
     pub update_channel: String,
     pub style: String,
+    pub language: String,
+    pub game_dir: String,
+    pub fullscreen: bool,
+    pub window_width: u32,
+    pub window_height: u32,
+    pub graphics_api: String,
+    pub after_start: String,
 }
 
 fn installed_client() -> Option<PathBuf> {
@@ -82,6 +91,7 @@ impl Default for Settings {
                 name: "Local server".into(),
                 address: "127.0.0.1:25565".into(),
                 version: String::new(),
+                account: String::new(),
             }],
             selected_server: 0,
             client_binary: installed_client()
@@ -101,6 +111,13 @@ impl Default for Settings {
             check_updates: true,
             update_channel: "stable".into(),
             style: "modern".into(),
+            language: "auto".into(),
+            game_dir: String::new(),
+            fullscreen: false,
+            window_width: 0,
+            window_height: 0,
+            graphics_api: "auto".into(),
+            after_start: "keep".into(),
         }
     }
 }
@@ -138,6 +155,7 @@ impl Settings {
                         name: address.clone(),
                         address,
                         version: String::new(),
+                        account: String::new(),
                     },
                 );
                 settings.selected_server = 0;
@@ -215,6 +233,7 @@ mod tests {
             name: "Ex".into(),
             address: "example.org:25570".into(),
             version: "26.2".into(),
+            account: String::new(),
         });
         settings.remember(SavedAccount {
             name: "Alex".into(),
@@ -290,7 +309,7 @@ mod tests {
         let loaded = Settings::load(&path);
         assert_eq!(loaded.accounts.len(), 1);
         assert_eq!(loaded.active_saved().unwrap().name, "Old");
-        assert!(!serde_json::to_string(&loaded).unwrap().contains("\"account\""));
+        assert!(!serde_json::to_string(&loaded).unwrap().contains("\"account\":{"));
     }
 
     #[test]

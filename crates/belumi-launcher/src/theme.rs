@@ -55,6 +55,8 @@ pub fn current() -> Style {
 pub struct Theme {
     pub bg: Color32,
     pub panel: Color32,
+    pub nav: Color32,
+    pub status_bar: Color32,
     pub card: Color32,
     pub control: Color32,
     pub control_hover: Color32,
@@ -86,6 +88,8 @@ pub fn theme(style: Style) -> Theme {
         Style::Modern => Theme {
             bg: Color32::from_rgb(0x0e, 0x10, 0x15),
             panel: Color32::from_rgb(0x14, 0x17, 0x1e),
+            nav: Color32::from_rgb(0x14, 0x17, 0x1e),
+            status_bar: Color32::from_rgb(0x14, 0x17, 0x1e),
             card: Color32::from_rgb(0x1b, 0x1f, 0x29),
             control: Color32::from_rgb(0x26, 0x2b, 0x38),
             control_hover: Color32::from_rgb(0x31, 0x38, 0x4a),
@@ -108,6 +112,8 @@ pub fn theme(style: Style) -> Theme {
         Style::Glass => Theme {
             bg: Color32::from_rgb(0x0b, 0x12, 0x20),
             panel: white(14),
+            nav: white(12),
+            status_bar: white(10),
             card: white(20),
             control: white(28),
             control_hover: white(42),
@@ -130,6 +136,8 @@ pub fn theme(style: Style) -> Theme {
         Style::Minecraft => Theme {
             bg: Color32::from_rgb(0x3b, 0x3b, 0x3b),
             panel: Color32::from_rgb(0x2b, 0x2b, 0x2b),
+            nav: Color32::from_rgb(0x6f, 0x52, 0x30),
+            status_bar: Color32::from_rgb(0x4a, 0x36, 0x22),
             card: Color32::from_rgb(0x4a, 0x4a, 0x4a),
             control: Color32::from_rgb(0x52, 0x52, 0x52),
             control_hover: Color32::from_rgb(0x60, 0x60, 0x60),
@@ -191,6 +199,8 @@ mod tests {
             for (name, surface) in [
                 ("bg", ground),
                 ("panel", over(t.panel, t.bg)),
+                ("nav", over(t.nav, t.bg)),
+                ("status bar", over(t.status_bar, t.bg)),
                 ("card", over(t.card, t.bg)),
                 ("control", over(t.control, over(t.card, t.bg))),
                 ("control hover", over(t.control_hover, over(t.card, t.bg))),

@@ -18,6 +18,23 @@ cargo run --release -p belumi-launcher   # or: cargo run -p belumi-launcher
   settings and the Microsoft *refresh* token. There is no keychain integration yet.
   The game's output goes to `<data dir>/logs/game.log`.
 
+## Playing
+
+- **Play** is the centre: the account, the big Play button, then your servers (with a live ping: online or offline,
+  players, latency) and your singleplayer worlds with a one-click start. "Main menu" starts the game without joining.
+- A server can have its own account (select the server, pick one under Account): the launcher switches to it before
+  the start.
+- Headless start for shortcuts and scripts: `belumi-launcher --play [--offline] [--server HOST[:PORT] | --world NAME | --main-menu]`
+  renews the saved account and starts the game without opening a window.
+- Launch options (Settings): fullscreen, window size, graphics API (Vulkan or DirectX 12), and what the launcher does
+  after the game starts (stay, minimise, close). A game folder can be set too.
+- After a crash the Play page shows the last log line with "Open folder", "Copy report" and "Pack logs for support"
+  (a ZIP of the game log and the crash report with the home folder and token-like strings removed).
+- A first-start check lists a missing game file, missing prepared resources, an unwritable game folder or a missing
+  Vulkan driver, with the path and what to do.
+- Drop a shader pack `.zip` on the window to copy it into the game's `shaderpacks` folder.
+- The launcher speaks English and German (Settings, or by the system language).
+
 ## Looks
 
 Settings -> Look switches between three styles: Modern (dark, calm), Modern Glass (gradient with translucent panels) and
