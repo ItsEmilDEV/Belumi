@@ -14,7 +14,7 @@ extras) are on the same page as quick toggles.
 | Death waypoint | automatic | A waypoint "Death" is set where you died (replacing the last one) when waypoints are on |
 | Interface style | Settings | Minecraft (translucent black boxes) or Modern (flat, soft corners, thin edge) for the HUD panels, the voice panel and the minimap rim |
 | World map | M | Overlay of everything you explored, saved per world and server. Left button drags, arrows/WASD move, wheel zooms, C centres on you, B sets a waypoint at the crosshair, Enter teleports there (needs permission); the player stands still while it is open |
-| Waypoints | B | Saves your position; `/waypoint add [name]`, `remove NAME`, `list`, `clear`; labels in the world, on the maps and a nearest list |
+| Waypoints | B | Saves your position; `/waypoint add [name]`, `remove NAME`, `list`, `clear`, `import FOLDER_OR_FILE` (Xaero waypoint files, dimension from the `dim%N` folder, duplicates skipped); labels in the world, on the maps and a nearest list |
 | Packet inspector | F8 | Live packet rates and sizes, top packets by bytes, the latest packets |
 | Freecam | F9 | Detaches the camera and blocks all movement input of the player; WASD, Space, Shift, Ctrl for speed, the wheel changes speed |
 | Screen effects | | Vignette, saturation, contrast, colour temperature, sharpen, film grain ([effects.md](effects.md)) |
