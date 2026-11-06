@@ -13,7 +13,7 @@ extras) are on the same page as quick toggles.
 | Map overlays | Settings, `/map` | Chunk borders and slime chunks (tinted green) on both maps. Slime chunks need the world seed: singleplayer knows it, on a server type `/map seed NUMBER` (kept per server). `/map grid`, `/map slime` toggle, `/map export` writes a PNG of everything explored to `map-exports/` |
 | Death waypoint | automatic | A waypoint "Death" is set where you died (replacing the last one) when waypoints are on |
 | Interface style | Settings | Minecraft (translucent black boxes) or Modern (flat, soft corners, thin edge) for the HUD panels, the voice panel and the minimap rim |
-| World map | M | Overlay of everything you explored, saved per world and server. Left button drags, arrows/WASD move, wheel zooms, C centres on you, B sets a waypoint at the crosshair, Enter teleports there (needs permission); the player stands still while it is open |
+| World map | M | Overlay of everything you explored, saved per world and server. Left button drags, arrows/WASD move, wheel zooms, C centres on you, PageUp/PageDown change the layer (Home: surface, End: follow you), B sets a waypoint at the crosshair, Enter teleports there (needs permission); the player stands still while it is open |
 | Waypoints | B | Saves your position; `/waypoint add [name]`, `remove NAME`, `list`, `clear`, `import FOLDER_OR_FILE` (Xaero waypoint files, dimension from the `dim%N` folder, duplicates skipped); labels in the world, on the maps and a nearest list |
 | Packet inspector | F8 | Live packet rates and sizes, top packets by bytes, the latest packets |
 | Freecam | F9 | Detaches the camera and blocks all movement input of the player; WASD, Space, Shift, Ctrl for speed, the wheel changes speed |
@@ -40,6 +40,7 @@ With the switch on but the feature missing, the game says so in chat once.
 | `belumi.toml` | All settings above |
 | `belumi-waypoints.toml` | Waypoints, grouped by world or server and dimension |
 | `belumi-maps/<world or server>/<dimension>/r.X.Z.bin` | The explored world map, one file per region of 32x32 chunks (changed regions are written in the background) |
+| `belumi-maps/<world or server>/<dimension>/cave-N/r.X.Z.bin` | The same for caves and the Nether: one map per 16-block height band `N` (`y >> 4`) of where you were |
 | `belumi-plugins/<name>/` | Client plugins |
 
 ## Performance
@@ -51,7 +52,7 @@ screen effects add about 0.04 ms (measured, [effects.md](effects.md)).
 
 ## Known limits
 
-- The world map shows the surface of the Overworld and the End; caves and the Nether are not stored yet.
+- Underground (a cave, or the Nether) the world map shows the cave floor at your height band and stores it per band; PageUp/PageDown look at the bands above and below. Up to 8 bands stay open at once.
 - Freecam keeps the render distance of your body: it stays within that range.
 - The in-world waypoint labels assume the default projection and ignore the small speed-based field of view changes.
 - Voice chat connects to live Simple Voice Chat servers; audio has not been checked by ear ([voice-chat.md](voice-chat.md#status)).
