@@ -35,7 +35,7 @@ fn nav_item(ui: &mut egui::Ui, icon: Icon, label: &str, selected: bool) -> egui:
     let painter = ui.painter();
     if t.bevel {
         let tab = if selected { rect } else { egui::Rect::from_min_max(rect.min, rect.max - vec2(10.0 - 6.0 * lift, 0.0)) };
-        let fill = if selected { t.card } else { crate::kit::mix_colors(t.control, t.control_hover, lift) };
+        let fill = if selected { t.control_hover } else { crate::kit::mix_colors(t.control, t.control_hover, lift) };
         painter.add(egui::Shape::Vec(crate::kit::bevel_shapes(tab.shrink2(vec2(0.0, 1.0)), fill, !selected, 2.0)));
         if selected {
             painter.rect_filled(egui::Rect::from_min_size(tab.min + vec2(6.0, 8.0), vec2(6.0, rect.height() - 16.0)), 0.0, t.accent);
@@ -322,7 +322,7 @@ impl App {
                     painter.rect_filled(rect, radius, t.accent_dim);
                     painter.rect_stroke(rect, radius, Stroke::new(t.border.max(1.0) + if t.bevel { 0.0 } else { 0.5 }, t.accent), egui::StrokeKind::Inside);
                 } else if lift > 0.01 {
-                    painter.rect_filled(rect, radius, if t.bevel { Color32::from_black_alpha((20.0 * lift) as u8) } else { Color32::from_white_alpha((16.0 * lift) as u8) });
+                    painter.rect_filled(rect, radius, if t.bevel { Color32::from_white_alpha((14.0 * lift) as u8) } else { Color32::from_white_alpha((16.0 * lift) as u8) });
                 }
             }
             let (color, label) = match &probe {

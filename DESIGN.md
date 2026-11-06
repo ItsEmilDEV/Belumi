@@ -6,7 +6,7 @@ Mode: Operate. Surface: a 760x500 native window (egui). Three styles share one l
 
 | Token | Modern | Modern Glass | Pixel |
 |---|---|---|---|
-| bg | #0E1015 | gradient #14102A to #0B1220 | #F7E2AB parchment with flecks, framed in a tan board with 2 px #5A2E12 outlines |
+| bg | #0E1015 | gradient #14102A to #0B1220 | #33251A dark parchment board in a wooden frame with nails, 2 px #120A05 outlines |
 | panel (nav, status) | #14171E | #FFFFFF at 6% over bg | #EFD391 |
 | nav / status bar | #14171E | #FFFFFF at 12% / 10% | wooden table #D7A463 with seams; tabs are tan buttons, the active one cream with a green marker |
 | card | #1B1F29 | #FFFFFF at 8%, 1 px #FFFFFF at 14% edge | #FFF1C9 inset, notched corners |

@@ -29,7 +29,7 @@ pub fn apply_theme(ctx: &egui::Context) {
     v.panel_fill = Color32::TRANSPARENT;
     v.window_fill = t.panel;
     v.extreme_bg_color = if t.bevel {
-        Color32::from_rgb(0xff, 0xf8, 0xe0)
+        Color32::from_rgb(0x1a, 0x11, 0x0a)
     } else if t.glass {
         Color32::from_rgba_unmultiplied(0x0f, 0x0c, 0x20, 150)
     } else {
@@ -115,7 +115,7 @@ fn paper_texture(ctx: &egui::Context) -> egui::TextureHandle {
     pixel_texture(ctx, "paper", [16, 16], |x, y| {
         let base = t().bg;
         if hash(x as i32, y as i32) % 11 == 0 {
-            Color32::from_rgb(base.r().saturating_sub(10), base.g().saturating_sub(14), base.b().saturating_sub(20))
+            Color32::from_rgb(base.r().saturating_add(7), base.g().saturating_add(6), base.b().saturating_add(5))
         } else {
             base
         }
@@ -128,11 +128,11 @@ fn wood_texture(ctx: &egui::Context) -> egui::TextureHandle {
         let base = t().nav;
         let board = hash(0, 77) % 3;
         if y % 6 == 5 {
-            return Color32::from_rgb(base.r() - 0x10, base.g() - 0x18, base.b() - 0x14);
+            return Color32::from_rgb(base.r() - 0x0e, base.g() - 0x0c, base.b() - 0x09);
         }
         let fleck = hash((x / 3) as i32, (y / 6) as i32 + board as i32) % 9;
         if fleck == 0 && y % 3 == 1 {
-            Color32::from_rgb(base.r() - 0x0c, base.g() - 0x16, base.b() - 0x14)
+            Color32::from_rgb(base.r() + 0x08, base.g() + 0x06, base.b() + 0x04)
         } else {
             base
         }
@@ -173,11 +173,15 @@ fn ring(painter: &egui::Painter, rect: Rect, w: f32, color: Color32) {
 pub fn paint_board(painter: &egui::Painter, rect: Rect, ctx: &egui::Context) {
     let t = t();
     painter.rect_filled(rect, 0.0, t.line);
-    painter.rect_filled(rect.shrink(2.0), 0.0, Color32::from_rgb(0xc9, 0x7d, 0x2e));
-    ring(painter, rect.shrink(2.0), 2.0, Color32::from_rgb(0xea, 0xa6, 0x4e));
+    painter.rect_filled(rect.shrink(2.0), 0.0, Color32::from_rgb(0x7a, 0x4a, 0x1f));
+    ring(painter, rect.shrink(2.0), 2.0, Color32::from_rgb(0xa8, 0x6c, 0x2c));
     painter.rect_filled(rect.shrink(8.0), 0.0, t.line);
     tile(painter, rect.shrink(10.0), &paper_texture(ctx), 4.0);
-    ring(painter, rect.shrink(10.0), 2.0, Color32::from_black_alpha(36));
+    ring(painter, rect.shrink(10.0), 2.0, Color32::from_black_alpha(90));
+    for nail in [rect.left_top() + vec2(3.0, 3.0), rect.right_top() + vec2(-7.0, 3.0), rect.left_bottom() + vec2(3.0, -7.0), rect.right_bottom() + vec2(-7.0, -7.0)] {
+        painter.rect_filled(Rect::from_min_size(nail, vec2(4.0, 4.0)), 0.0, Color32::from_rgb(0xd8, 0xb0, 0x6a));
+        painter.rect_filled(Rect::from_min_size(nail + vec2(2.0, 2.0), vec2(2.0, 2.0)), 0.0, Color32::from_rgb(0x5a, 0x3a, 0x18));
+    }
     for corner in [rect.left_top(), rect.right_top() - vec2(2.0, 0.0), rect.left_bottom() - vec2(0.0, 2.0), rect.right_bottom() - vec2(2.0, 2.0)] {
         painter.rect_filled(Rect::from_min_size(corner, vec2(2.0, 2.0)), 0.0, t.nav);
     }
@@ -194,7 +198,7 @@ pub fn paint_ledge(painter: &egui::Painter, rect: Rect) {
 /// A pixel box: a dark outline with notched corners, a flat fill, a light and a shaded lip.
 pub fn bevel_shapes(rect: Rect, fill: Color32, raised: bool, edge: f32) -> Vec<Shape> {
     let t = t();
-    let (light, dark) = (Color32::from_white_alpha(120), Color32::from_black_alpha(50));
+    let (light, dark) = (Color32::from_white_alpha(38), Color32::from_black_alpha(90));
     let (a, b) = if raised { (light, dark) } else { (dark, light) };
     let inner = rect.shrink(2.0);
     let side = |r: Rect, c: Color32| Shape::rect_filled(r, 0.0, c);
@@ -255,7 +259,7 @@ pub fn card<R>(ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
 pub fn well<R>(ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
     let t = t();
     let fill = if t.bevel {
-        Color32::from_rgb(0xff, 0xf8, 0xe0)
+        Color32::from_rgb(0x1a, 0x11, 0x0a)
     } else {
         Color32::from_rgb(0x0a, 0x0c, 0x12)
     };
@@ -274,12 +278,13 @@ pub fn well<R>(ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
 pub fn title(ui: &mut egui::Ui, text: &str, subtitle: &str) {
     let t = t();
     let size = if t.bevel { 28.0 } else { 24.0 };
-    let galley = ui.painter().layout_no_wrap(text.to_owned(), face(size), t.text);
+    let ink = if t.bevel { Color32::from_rgb(0xff, 0xd3, 0x7a) } else { t.text };
+    let galley = ui.painter().layout_no_wrap(text.to_owned(), face(size), ink);
     let (rect, _) = ui.allocate_exact_size(galley.size(), Sense::hover());
     if t.bevel {
-        ui.painter().galley(rect.min + vec2(2.0, 2.0), ui.painter().layout_no_wrap(text.to_owned(), face(size), Color32::from_rgb(0xd9, 0xa8, 0x62)), t.text);
+        ui.painter().galley(rect.min + vec2(2.0, 2.0), ui.painter().layout_no_wrap(text.to_owned(), face(size), Color32::from_black_alpha(160)), t.text);
     }
-    ui.painter().galley(rect.min, galley, t.text);
+    ui.painter().galley(rect.min, galley, ink);
     if !subtitle.is_empty() {
         ui.add_space(-6.0);
         ui.label(muted(subtitle));
@@ -421,7 +426,7 @@ pub fn segmented(ui: &mut egui::Ui, options: &[String], selected: usize) -> Opti
                 painter.rect_stroke(cell, radius - 2.0, Stroke::new(1.0, t.accent), egui::StrokeKind::Inside);
             }
         } else if lift > 0.01 {
-            painter.rect_filled(cell, if t.bevel { 0.0 } else { radius - 2.0 }, if t.bevel { Color32::from_black_alpha((20.0 * lift) as u8) } else { Color32::from_white_alpha((14.0 * lift) as u8) });
+            painter.rect_filled(cell, if t.bevel { 0.0 } else { radius - 2.0 }, if t.bevel { Color32::from_white_alpha((16.0 * lift) as u8) } else { Color32::from_white_alpha((14.0 * lift) as u8) });
         }
         let color = if on && t.bevel { t.on_accent } else if on { t.text } else { mix(t.muted, t.text, lift) };
         let galley = painter.layout_no_wrap(option.clone(), font.clone(), color);
