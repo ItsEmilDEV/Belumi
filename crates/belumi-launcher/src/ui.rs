@@ -808,7 +808,7 @@ impl eframe::App for App {
             .frame(egui::Frame::new().fill(if theme.bevel { Color32::TRANSPARENT } else { theme.nav }).inner_margin(egui::Margin::same(14)))
             .show(ui, |ui| {
                 if theme.bevel {
-                    paint_planks(ui.painter(), ui.max_rect().expand(14.0));
+                    paint_planks(ui.painter(), ui.max_rect().expand(14.0), ui.ctx());
                 }
                 let logo = self.logo.get_or_insert_with(|| {
                     let icon = eframe::icon_data::from_png_bytes(include_bytes!("../assets/logo-256.png")).unwrap_or_default();

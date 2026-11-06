@@ -84,6 +84,68 @@ fn radial(painter: &egui::Painter, centre: Pos2, radius: f32, color: Color32) {
     painter.add(Shape::mesh(mesh));
 }
 
+/// A small pixel-art texture, built once per window and sampled without smoothing.
+fn pixel_texture(ctx: &egui::Context, key: &str, size: [usize; 2], texel: impl Fn(usize, usize) -> Color32) -> egui::TextureHandle {
+    let id = egui::Id::NULL.with("belumi-texture").with(key);
+    if let Some(handle) = ctx.data(|d| d.get_temp::<egui::TextureHandle>(id)) {
+        return handle;
+    }
+    let mut pixels = Vec::with_capacity(size[0] * size[1]);
+    for y in 0..size[1] {
+        for x in 0..size[0] {
+            pixels.push(texel(x, y));
+        }
+    }
+    let image = egui::ColorImage::new(size, pixels);
+    let handle = ctx.load_texture(key, image, egui::TextureOptions::NEAREST_REPEAT);
+    ctx.data_mut(|d| d.insert_temp(id, handle.clone()));
+    handle
+}
+
+/// Tiles `texture` over `rect`, every texel drawn `scale` points wide.
+fn tile(painter: &egui::Painter, rect: Rect, texture: &egui::TextureHandle, scale: f32) {
+    let size = texture.size_vec2() * scale;
+    let uv = Rect::from_min_size(Pos2::ZERO, rect.size() / size);
+    painter.image(texture.id(), rect, uv, Color32::WHITE);
+}
+
+fn grey(v: u8) -> Color32 {
+    Color32::from_rgb(v, v, v)
+}
+
+/// Dark cobbled stone, 32 texels square, in five flat grey steps like the game's own blocks.
+fn stone_texture(ctx: &egui::Context) -> egui::TextureHandle {
+    pixel_texture(ctx, "stone", [32, 32], |x, y| {
+        let h = hash(x as i32, y as i32) >> 3;
+        let coarse = hash((x / 3) as i32 + 40, (y / 3) as i32 + 7) >> 5;
+        let level = (h % 5) as i32 + (coarse % 3) as i32 - 2;
+        grey([0x2c, 0x32, 0x38, 0x3e, 0x44, 0x4a][(level + 2).clamp(0, 5) as usize])
+    })
+}
+
+/// Oak planks, 32 x 16 texels: four boards, dark seams, brick-bonded joints and wood grain.
+fn plank_texture(ctx: &egui::Context) -> egui::TextureHandle {
+    pixel_texture(ctx, "planks", [32, 16], |x, y| {
+        let board = y / 4;
+        let seam = y % 4 == 3;
+        let joint = (x + board * 11) % 32 == 0;
+        let g = hash((x / 2) as i32 + board as i32 * 9, board as i32) % 7;
+        let shade = hash(x as i32, y as i32) % 5;
+        if seam || joint {
+            return Color32::from_rgb(0x3a, 0x28, 0x15);
+        }
+        let base: [u8; 3] = if g < 2 {
+            [0x80, 0x5f, 0x37]
+        } else if g < 5 {
+            [0x76, 0x57, 0x31]
+        } else {
+            [0x6c, 0x4f, 0x2c]
+        };
+        let d = if shade == 0 { 8 } else { 0 };
+        Color32::from_rgb(base[0] - d, base[1] - d, base[2] - d)
+    })
+}
+
 /// The window's ground: flat, a gradient with two soft glows (glass), or tiled stone (Minecraft).
 pub fn paint_ground(ui: &egui::Ui) {
     let t = t();
@@ -100,49 +162,17 @@ pub fn paint_ground(ui: &egui::Ui) {
         painter.add(Shape::mesh(mesh));
         radial(painter, rect.left_top() + vec2(260.0, 40.0), 340.0, Color32::from_rgba_unmultiplied(0x7a, 0x4d, 0xff, 70));
         radial(painter, rect.right_bottom() - vec2(120.0, 40.0), 300.0, Color32::from_rgba_unmultiplied(0x2b, 0x6b, 0xff, 46));
+    } else if t.bevel {
+        tile(painter, rect, &stone_texture(ui.ctx()), 4.0);
     } else {
         painter.rect_filled(rect, 0.0, t.bg);
-        if t.bevel {
-            let tile = 32.0;
-            let (cols, rows) = ((rect.width() / tile).ceil() as i32 + 1, (rect.height() / tile).ceil() as i32 + 1);
-            for y in 0..rows {
-                for x in 0..cols {
-                    let h = hash(x, y);
-                    let shade = [0u8, 7, 14, 0, 5, 10, 0, 12][(h & 7) as usize];
-                    let dark = h >> 5 & 3 == 0;
-                    let at = rect.min + vec2(x as f32 * tile, y as f32 * tile);
-                    let cell = Rect::from_min_size(at, vec2(tile, tile));
-                    if shade > 0 {
-                        painter.rect_filled(cell, 0.0, Color32::from_white_alpha(shade));
-                    }
-                    if dark {
-                        let speck = Rect::from_min_size(at + vec2((h >> 8 & 15) as f32 * 1.5, (h >> 12 & 15) as f32 * 1.5), vec2(4.0, 4.0));
-                        painter.rect_filled(speck, 0.0, Color32::from_black_alpha(26));
-                    }
-                }
-            }
-        }
     }
 }
 
 /// The wooden sign the Minecraft navigation sits on.
-pub fn paint_planks(painter: &egui::Painter, rect: Rect) {
-    let t = t();
-    painter.rect_filled(rect, 0.0, t.nav);
-    let mut y = rect.min.y;
-    let mut row = 0;
-    while y < rect.max.y {
-        let band = Rect::from_min_max(egui::pos2(rect.min.x, y), egui::pos2(rect.max.x, (y + 22.0).min(rect.max.y)));
-        painter.rect_filled(band, 0.0, Color32::from_black_alpha(if row % 2 == 0 { 0 } else { 14 }));
-        painter.rect_filled(Rect::from_min_size(band.min, vec2(rect.width(), 1.0)), 0.0, Color32::from_black_alpha(80));
-        let mut x = rect.min.x + (hash(row, 3) % 60) as f32;
-        while x < rect.max.x {
-            painter.rect_filled(Rect::from_min_size(egui::pos2(x, y + 3.0), vec2(1.0, 16.0)), 0.0, Color32::from_black_alpha(36));
-            x += 70.0 + (hash(row, x as i32) % 30) as f32;
-        }
-        y += 22.0;
-        row += 1;
-    }
+pub fn paint_planks(painter: &egui::Painter, rect: Rect, ctx: &egui::Context) {
+    tile(painter, rect, &plank_texture(ctx), 4.0);
+    painter.rect_filled(Rect::from_min_size(egui::pos2(rect.max.x - 4.0, rect.min.y), vec2(4.0, rect.height())), 0.0, Color32::from_black_alpha(110));
 }
 
 /// Grass over dirt: the strip that holds the status line in the Minecraft look.
@@ -181,6 +211,15 @@ pub fn bevel_shapes(rect: Rect, fill: Color32, raised: bool, edge: f32) -> Vec<S
     ]
 }
 
+/// The dark list panel of the game's own menus: see-through black, a hard outline, a faint lip below.
+fn panel_shapes(rect: Rect) -> Vec<Shape> {
+    vec![
+        Shape::rect_filled(rect, 0.0, Color32::from_black_alpha(150)),
+        Shape::rect_filled(Rect::from_min_size(egui::pos2(rect.min.x, rect.max.y - 2.0), vec2(rect.width(), 2.0)), 0.0, Color32::from_white_alpha(22)),
+        Shape::rect_stroke(rect, 0.0, Stroke::new(2.0, Color32::from_black_alpha(230)), egui::StrokeKind::Inside),
+    ]
+}
+
 /// Light on the top edge and a faint one below: what makes glass read as glass.
 fn glass_edges(rect: Rect, radius: f32) -> Vec<Shape> {
     let r = radius.min(rect.height() / 2.0);
@@ -210,7 +249,7 @@ pub fn card<R>(ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
     let out = add(&mut prepared.content_ui);
     let rect = prepared.frame.outer_rect(prepared.content_ui.min_rect());
     if t.bevel {
-        ui.painter().set(slot, Shape::Vec(bevel_shapes(rect, t.card, true, t.border)));
+        ui.painter().set(slot, Shape::Vec(panel_shapes(rect)));
     } else if t.glass {
         ui.painter().set(slot, Shape::Vec(glass_edges(rect, f32::from(t.card_radius))));
     }
@@ -313,10 +352,8 @@ pub fn action(ui: &mut egui::Ui, kind: Kind, icon: Option<Icon>, text: &str, ena
     let radius = f32::from(t.control_radius);
     if t.bevel {
         let raised = !pressed;
-        let base = if kind == Kind::Ghost && lift < 0.05 { Color32::TRANSPARENT } else { fill };
-        if base != Color32::TRANSPARENT {
-            painter.add(Shape::Vec(bevel_shapes(rect, base, raised, t.border)));
-        }
+        let base = if kind == Kind::Ghost || kind == Kind::Danger { mix(t.control, t.control_hover, lift) } else { fill };
+        painter.add(Shape::Vec(bevel_shapes(rect, base, raised, t.border)));
     } else {
         painter.rect_filled(rect, radius, fill);
         if t.glass && kind != Kind::Ghost && kind != Kind::Danger {
