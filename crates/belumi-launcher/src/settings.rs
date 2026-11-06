@@ -99,7 +99,7 @@ impl Default for Settings {
                 .unwrap_or_else(|| horizon.join(".local/horizon-client/26.3"))
                 .display()
                 .to_string(),
-            offline_name: "BelumiPlayer".into(),
+            offline_name: "Schnitzelblitz".into(),
             use_prism: false,
             prism_accounts_path: String::new(),
             accounts: Vec::new(),
@@ -277,7 +277,7 @@ mod tests {
         );
         let bad = dir.path().join("bad.json");
         std::fs::write(&bad, "{ not json").unwrap();
-        assert_eq!(Settings::load(&bad).offline_name, "BelumiPlayer");
+        assert_eq!(Settings::load(&bad).offline_name, "Schnitzelblitz");
         std::fs::write(&bad, r#"{"server":"s:1"}"#).unwrap();
         let loaded = Settings::load(&bad);
         assert_eq!(loaded.active_server(), "s:1");
