@@ -153,12 +153,15 @@ pub fn paint_ground(ui: &egui::Ui) {
         mesh.add_triangle(0, 1, 2);
         mesh.add_triangle(0, 2, 3);
         painter.add(Shape::mesh(mesh));
-        radial(painter, rect.left_top() + vec2(260.0, 40.0), 340.0, Color32::from_rgba_unmultiplied(0x7a, 0x4d, 0xff, 70));
-        radial(painter, rect.right_bottom() - vec2(120.0, 40.0), 300.0, Color32::from_rgba_unmultiplied(0x2b, 0x6b, 0xff, 46));
+        radial(painter, rect.left_top() + vec2(300.0, 20.0), 420.0, Color32::from_rgba_unmultiplied(0x8a, 0x4d, 0xff, 96));
+        radial(painter, rect.right_top() + vec2(-60.0, 120.0), 260.0, Color32::from_rgba_unmultiplied(0xff, 0x5d, 0xc8, 34));
+        radial(painter, rect.right_bottom() - vec2(140.0, 20.0), 380.0, Color32::from_rgba_unmultiplied(0x2b, 0x8b, 0xff, 64));
     } else if t.bevel {
         tile(painter, rect, &wood_texture(ui.ctx()), 4.0);
     } else {
         painter.rect_filled(rect, 0.0, t.bg);
+        radial(painter, rect.right_top() + vec2(-120.0, 60.0), 420.0, Color32::from_rgba_unmultiplied(t.accent.r(), t.accent.g(), t.accent.b(), 26));
+        radial(painter, rect.left_bottom() + vec2(260.0, 40.0), 320.0, Color32::from_rgba_unmultiplied(0x2b, 0x6b, 0xff, 14));
     }
 }
 
@@ -359,13 +362,19 @@ pub fn action(ui: &mut egui::Ui, kind: Kind, icon: Option<Icon>, text: &str, ena
         painter.add(Shape::Vec(bevel_shapes(rect, base, raised, t.border)));
     } else {
         painter.rect_filled(rect, radius, fill);
+        if kind == Kind::Ghost || kind == Kind::Danger {
+            painter.rect_stroke(rect, radius, Stroke::new(1.0, Color32::from_white_alpha((26.0 + 30.0 * lift) as u8)), egui::StrokeKind::Inside);
+        }
+        if big && enabled {
+            let half = Rect::from_min_size(rect.min, vec2(rect.width(), rect.height() * 0.5));
+            let top = CornerRadius { nw: radius as u8, ne: radius as u8, sw: 0, se: 0 };
+            painter.rect_filled(half.shrink2(vec2(1.0, 1.0)), top, Color32::from_white_alpha(if pressed { 6 } else { 22 }));
+            for (grow, alpha) in [(1.0, 40u8), (3.0, 22), (6.0, 10), (10.0, 5)] {
+                painter.rect_stroke(rect.expand(grow), radius + grow, Stroke::new(1.5, Color32::from_rgba_unmultiplied(t.accent.r(), t.accent.g(), t.accent.b(), (f32::from(alpha) * (0.6 + 0.4 * lift)) as u8)), egui::StrokeKind::Outside);
+            }
+        }
         if t.glass && kind != Kind::Ghost && kind != Kind::Danger {
             painter.rect_stroke(rect, radius, Stroke::new(1.0, Color32::from_white_alpha(if kind == Kind::Primary { 60 } else { 28 })), egui::StrokeKind::Inside);
-        }
-        if big && t.glass {
-            for (grow, alpha) in [(1.0, 30u8), (2.5, 16), (4.0, 7)] {
-                painter.rect_stroke(rect.expand(grow), radius + grow, Stroke::new(1.0, Color32::from_rgba_unmultiplied(t.accent.r(), t.accent.g(), t.accent.b(), alpha)), egui::StrokeKind::Outside);
-            }
         }
     }
     if response.has_focus() {
@@ -436,6 +445,10 @@ pub fn segmented(ui: &mut egui::Ui, options: &[String], selected: usize) -> Opti
         }
     }
     picked
+}
+
+pub fn glow(painter: &egui::Painter, centre: Pos2, radius: f32, color: Color32) {
+    radial(painter, centre, radius, color);
 }
 
 pub fn dot(ui: &mut egui::Ui, color: Color32, size: f32) {

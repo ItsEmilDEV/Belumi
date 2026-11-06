@@ -41,10 +41,6 @@ fn nav_item(ui: &mut egui::Ui, icon: Icon, label: &str, selected: bool) -> egui:
             painter.rect_filled(egui::Rect::from_min_size(tab.min + vec2(6.0, 8.0), vec2(6.0, rect.height() - 16.0)), 0.0, t.accent);
         }
     } else if selected {
-        painter.rect_filled(rect, f32::from(t.control_radius), t.accent_dim);
-        if t.glass {
-            painter.rect_stroke(rect, f32::from(t.control_radius), Stroke::new(1.0, Color32::from_white_alpha(36)), egui::StrokeKind::Inside);
-        }
     } else if lift > 0.01 {
         painter.rect_filled(rect, f32::from(t.control_radius), Color32::from_white_alpha((14.0 * lift) as u8));
     }
@@ -227,13 +223,23 @@ impl App {
             .filter(|a| a.uuid != self.settings.active_account)
             .map(|a| (a.name.clone(), a.uuid.clone()))
             .collect();
+        let can_play = !self.playing && !self.busy && !self.diagnosing;
+        let online = can_play && self.account.is_some();
         let mut switch = None;
+        let mut go: Option<(bool, Target)> = None;
+        let playing = self.playing;
+        let offline_name = self.settings.offline_name.clone();
+        let theme = t();
+        if !theme.bevel {
+            let at = ui.cursor().min + vec2(60.0, 60.0);
+            crate::kit::glow(ui.painter(), at, 150.0, Color32::from_rgba_unmultiplied(theme.accent.r(), theme.accent.g(), theme.accent.b(), if theme.glass { 46 } else { 30 }));
+        }
         card(ui, |ui| {
             ui.horizontal(|ui| {
-                avatar(ui, &name, head.as_ref(), 56.0);
+                avatar(ui, &name, head.as_ref(), 64.0);
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
-                        ui.label(RichText::new(&name).font(face(20.0)).strong());
+                        ui.label(RichText::new(&name).font(face(22.0)).strong());
                         if !others.is_empty() {
                             ui.menu_button(tr("Switch"), |ui| {
                                 for (other, uuid) in &others {
@@ -248,37 +254,37 @@ impl App {
                     ui.label(muted(detail));
                 });
             });
+            ui.add_space(6.0);
+            ui.horizontal(|ui| {
+                let label = if playing { tr("Running...") } else { tr("Play") };
+                let primary = action(ui, Kind::Primary, Some(Icon::Play), &label, online, vec2(250.0, 56.0))
+                    .on_disabled_hover_text(tr("Sign in first, or play offline"));
+                if primary.clicked() {
+                    go = Some((true, Target::Server));
+                }
+                ui.vertical(|ui| {
+                    ui.spacing_mut().item_spacing.y = 4.0;
+                    if action(ui, Kind::Ghost, None, &tr("Main menu"), online, vec2(140.0, 26.0))
+                        .on_hover_text(tr("Starts the game without joining the selected server"))
+                        .clicked()
+                    {
+                        go = Some((true, Target::MainMenu));
+                    }
+                    if action(ui, Kind::Ghost, None, &tr("Play offline"), can_play, vec2(140.0, 26.0))
+                        .on_hover_text(trf("Play offline as {}", &[&offline_name]))
+                        .clicked()
+                    {
+                        go = Some((false, Target::Server));
+                    }
+                });
+            });
         });
         if let Some(uuid) = switch {
             self.switch_account(&uuid);
         }
-
-        let can_play = !self.playing && !self.busy && !self.diagnosing;
-        let online = can_play && self.account.is_some();
-        ui.add_space(2.0);
-        ui.horizontal(|ui| {
-            let label = if self.playing { tr("Running...") } else { tr("Play") };
-            let primary = action(ui, Kind::Primary, Some(Icon::Play), &label, online, vec2(240.0, 56.0))
-                .on_disabled_hover_text(tr("Sign in first, or play offline"));
-            if primary.clicked() {
-                self.play(true, Target::Server);
-            }
-            ui.vertical(|ui| {
-                ui.spacing_mut().item_spacing.y = 4.0;
-                if action(ui, Kind::Ghost, None, &tr("Main menu"), online, vec2(0.0, 26.0))
-                    .on_hover_text(tr("Starts the game without joining the selected server"))
-                    .clicked()
-                {
-                    self.play(true, Target::MainMenu);
-                }
-                if action(ui, Kind::Ghost, None, &tr("Play offline"), can_play, vec2(0.0, 26.0))
-                    .on_hover_text(trf("Play offline as {}", &[&self.settings.offline_name]))
-                    .clicked()
-                {
-                    self.play(false, Target::Server);
-                }
-            });
-        });
+        if let Some((online, target)) = go {
+            self.play(online, target);
+        }
         let version = self.settings.active_version().trim().to_owned();
         let line = if version.is_empty() {
             trf("Starts Minecraft as {} on {}", &[&name, &server_label])
@@ -321,6 +327,8 @@ impl App {
                 if selected {
                     painter.rect_filled(rect, radius, t.accent_dim);
                     painter.rect_stroke(rect, radius, Stroke::new(t.border.max(1.0) + if t.bevel { 0.0 } else { 0.5 }, t.accent), egui::StrokeKind::Inside);
+                } else if !t.bevel {
+                    painter.rect_filled(rect, radius, Color32::from_white_alpha((7.0 + 9.0 * lift) as u8));
                 } else if lift > 0.01 {
                     painter.rect_filled(rect, radius, if t.bevel { Color32::from_white_alpha((14.0 * lift) as u8) } else { Color32::from_white_alpha((16.0 * lift) as u8) });
                 }
@@ -339,7 +347,22 @@ impl App {
                 if t.bevel {
                     painter.rect_filled(egui::Rect::from_center_size(egui::pos2(rect.min.x + 20.0, rect.center().y), vec2(10.0, 10.0)), 0.0, color);
                 } else {
-                    painter.circle_filled(egui::pos2(rect.min.x + 20.0, rect.center().y), 5.0, color);
+                    let lit = match &probe {
+                        Probe::Up(s) => match s.latency_ms {
+                            0..=60 => 4,
+                            61..=120 => 3,
+                            121..=250 => 2,
+                            _ => 1,
+                        },
+                        _ => 0,
+                    };
+                    for b in 0..4 {
+                        let h = 5.0 + 3.0 * b as f32;
+                        let x = rect.min.x + 12.0 + 4.5 * b as f32;
+                        let bar = egui::Rect::from_min_max(egui::pos2(x, rect.center().y + 8.0 - h), egui::pos2(x + 3.0, rect.center().y + 8.0));
+                        let c = if b < lit { color } else { Color32::from_white_alpha(34) };
+                        painter.rect_filled(bar, 1.0, c);
+                    }
                 }
                 if !label.is_empty() {
                     let galley = painter.layout_no_wrap(label, face(12.5), if matches!(probe, Probe::Up(_)) { t.text } else { t.muted });
@@ -813,9 +836,25 @@ impl eframe::App for App {
                     let image = egui::ColorImage::from_rgba_unmultiplied([icon.width as usize, icon.height as usize], &icon.rgba);
                     ui.ctx().load_texture("logo", image, egui::TextureOptions::LINEAR)
                 });
+                if !theme.bevel {
+                    let at = ui.cursor().min + vec2(28.0, 28.0);
+                    crate::kit::glow(ui.painter(), at, 70.0, Color32::from_rgba_unmultiplied(theme.accent.r(), theme.accent.g(), theme.accent.b(), 60));
+                }
                 ui.add(egui::Image::new(&*logo).fit_to_exact_size(vec2(56.0, 56.0)));
                 ui.label(RichText::new("Belumi").font(face(22.0)).strong());
                 ui.add_space(10.0);
+                let first = ui.cursor().min;
+                let index = Tab::ALL.iter().position(|(tab, _, _)| *tab == self.tab).unwrap_or(0) as f32;
+                let slide = ui.ctx().animate_value_with_time(egui::Id::NULL.with("nav-slide"), index, 0.16);
+                if !theme.bevel {
+                    let pill = egui::Rect::from_min_size(first + vec2(0.0, slide * 36.0), vec2(ui.available_width(), 40.0));
+                    let radius = f32::from(theme.control_radius);
+                    ui.painter().rect_filled(pill, radius, theme.accent_dim);
+                    if theme.glass {
+                        ui.painter().rect_stroke(pill, radius, Stroke::new(1.0, Color32::from_white_alpha(36)), egui::StrokeKind::Inside);
+                    }
+                    ui.painter().rect_filled(egui::Rect::from_min_size(pill.min + vec2(0.0, 9.0), vec2(3.0, 22.0)), 1.5, theme.accent);
+                }
                 for (tab, icon, label) in Tab::ALL {
                     if nav_item(ui, icon, &tr(label), self.tab == tab).clicked() {
                         self.tab = tab;
