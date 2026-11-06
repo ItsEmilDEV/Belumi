@@ -11,12 +11,26 @@ fn path(dir: &Path, uuid: &str) -> PathBuf {
     dir.join(format!("{safe}.rgba"))
 }
 
+fn skin_path(dir: &Path, uuid: &str) -> PathBuf {
+    path(dir, uuid).with_extension("skin")
+}
+
+pub const SKIN_BYTES: usize = 64 * 64 * 4;
+
+pub fn skin_cached(dir: &Path, uuid: &str) -> Option<Vec<u8>> {
+    let bytes = std::fs::read(skin_path(dir, uuid)).ok()?;
+    (bytes.len() == SKIN_BYTES).then_some(bytes)
+}
+
 pub fn cached(dir: &Path, uuid: &str) -> Option<Vec<u8>> {
     let bytes = std::fs::read(path(dir, uuid)).ok()?;
     (bytes.len() == BYTES).then_some(bytes)
 }
 
 pub fn is_stale(dir: &Path, uuid: &str) -> bool {
+    if !skin_path(dir, uuid).exists() {
+        return true;
+    }
     std::fs::metadata(path(dir, uuid))
         .and_then(|m| m.modified())
         .ok()
@@ -25,9 +39,10 @@ pub fn is_stale(dir: &Path, uuid: &str) -> bool {
 }
 
 pub fn fetch_and_store(dir: &Path, uuid: &str) -> Option<Vec<u8>> {
-    let head = fetch(uuid)?;
+    let (head, skin) = fetch(uuid)?;
     let _ = std::fs::create_dir_all(dir);
     let _ = std::fs::write(path(dir, uuid), &head);
+    let _ = std::fs::write(skin_path(dir, uuid), &skin);
     Some(head)
 }
 
@@ -37,7 +52,7 @@ fn agent() -> ureq::Agent {
         .build()
 }
 
-fn fetch(uuid: &str) -> Option<Vec<u8>> {
+fn fetch(uuid: &str) -> Option<(Vec<u8>, Vec<u8>)> {
     let id: String = uuid.chars().filter(|c| *c != '-').collect();
     let profile: Value = agent()
         .get(&format!(
@@ -61,7 +76,50 @@ fn fetch(uuid: &str) -> Option<Vec<u8>> {
     )
     .ok()?;
     let icon = eframe::icon_data::from_png_bytes(&png).ok()?;
-    head_of(&icon.rgba, icon.width as usize, icon.height as usize)
+    let (w, h) = (icon.width as usize, icon.height as usize);
+    Some((head_of(&icon.rgba, w, h)?, normalize_skin(&icon.rgba, w, h)?))
+}
+
+/// Any skin as the classic 64 x 64 layout: HD skins sampled down, old 64 x 32 skins get a mirrored left arm and leg.
+pub fn normalize_skin(rgba: &[u8], width: usize, height: usize) -> Option<Vec<u8>> {
+    if width < 64 || width % 64 != 0 || (height != width && height != width / 2) || rgba.len() < width * height * 4 {
+        return None;
+    }
+    let scale = width / 64;
+    let rows = height / scale;
+    let mut out = vec![0u8; SKIN_BYTES];
+    for y in 0..rows {
+        for x in 0..64 {
+            let at = ((y * scale) * width + x * scale) * 4;
+            out[(y * 64 + x) * 4..][..4].copy_from_slice(&rgba[at..at + 4]);
+        }
+    }
+    if rows == 32 {
+        let mirror = |out: &mut Vec<u8>, from: (usize, usize), to: (usize, usize), w: usize, h: usize| {
+            for y in 0..h {
+                for x in 0..w {
+                    let s = ((from.1 + y) * 64 + from.0 + (w - 1 - x)) * 4;
+                    let d = ((to.1 + y) * 64 + to.0 + x) * 4;
+                    let px: [u8; 4] = out[s..s + 4].try_into().unwrap_or([0; 4]);
+                    out[d..d + 4].copy_from_slice(&px);
+                }
+            }
+        };
+        for (src, dst) in [((0, 16), (16, 48)), ((40, 16), (32, 48))] {
+            let faces: [((usize, usize), (usize, usize), usize, usize); 6] = [
+                ((4, 0), (4, 0), 4, 4),
+                ((8, 0), (8, 0), 4, 4),
+                ((0, 4), (8, 4), 4, 12),
+                ((4, 4), (4, 4), 4, 12),
+                ((8, 4), (0, 4), 4, 12),
+                ((12, 4), (12, 4), 4, 12),
+            ];
+            for (f, t, w, h) in faces {
+                mirror(&mut out, (src.0 + f.0, src.1 + f.1), (dst.0 + t.0, dst.1 + t.1), w, h);
+            }
+        }
+    }
+    Some(out)
 }
 
 pub fn head_of(rgba: &[u8], width: usize, height: usize) -> Option<Vec<u8>> {
@@ -114,6 +172,16 @@ fn base64_decode(text: &str) -> Option<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn old_skins_get_a_left_arm_and_leg() {
+        let mut old = vec![0u8; 64 * 32 * 4];
+        old[(20 * 64 + 5) * 4..][..4].copy_from_slice(&[9, 9, 9, 255]);
+        let skin = normalize_skin(&old, 64, 32).unwrap();
+        assert_eq!(skin.len(), SKIN_BYTES);
+        assert!(skin.chunks(4).any(|p| p == [9, 9, 9, 255]));
+        assert!(normalize_skin(&old, 64, 48).is_none());
+    }
 
     #[test]
     fn base64_reads_texture_values() {

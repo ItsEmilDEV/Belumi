@@ -215,6 +215,11 @@ impl App {
         self.banners(ui);
         let (name, detail) = self.account_line();
         let head = self.active_head(ui.ctx());
+        let skin_key = match &self.account {
+            Some(a) => a.uuid.clone(),
+            None => self.settings.active_saved().map_or_else(|| "offline".to_owned(), |a| a.uuid.clone()),
+        };
+        self.ensure_skin(ui.ctx(), &skin_key);
         let server_label = self.selected_server_label();
         let others: Vec<(String, String)> = self
             .settings
@@ -234,7 +239,14 @@ impl App {
             let at = ui.cursor().min + vec2(60.0, 60.0);
             crate::kit::glow(ui.painter(), at, 150.0, Color32::from_rgba_unmultiplied(theme.accent.r(), theme.accent.g(), theme.accent.b(), if theme.glass { 46 } else { 30 }));
         }
+        let skin = self.skins.get(&skin_key);
         card(ui, |ui| {
+            if let Some(skin) = skin {
+                let right = ui.max_rect().right();
+                let top = ui.max_rect().top();
+                let stage = egui::Rect::from_min_size(egui::pos2(right - 190.0, top - 44.0), vec2(190.0, 196.0));
+                crate::skin3d::paint(ui, stage, skin);
+            }
             ui.horizontal(|ui| {
                 avatar(ui, &name, head.as_ref(), 64.0);
                 ui.vertical(|ui| {
@@ -847,7 +859,8 @@ impl eframe::App for App {
                 let index = Tab::ALL.iter().position(|(tab, _, _)| *tab == self.tab).unwrap_or(0) as f32;
                 let slide = ui.ctx().animate_value_with_time(egui::Id::NULL.with("nav-slide"), index, 0.16);
                 if !theme.bevel {
-                    let pill = egui::Rect::from_min_size(first + vec2(0.0, slide * 36.0), vec2(ui.available_width(), 40.0));
+                    let pitch = 40.0 + ui.spacing().item_spacing.y - 4.0;
+                    let pill = egui::Rect::from_min_size(first + vec2(0.0, slide * pitch), vec2(ui.available_width(), 40.0));
                     let radius = f32::from(theme.control_radius);
                     ui.painter().rect_filled(pill, radius, theme.accent_dim);
                     if theme.glass {
@@ -1000,7 +1013,7 @@ impl App {
         }
         self.tab = tab;
         shots.frames += 1;
-        if shots.frames == 8 && !shots.waiting {
+        if shots.frames == 30 && !shots.waiting {
             shots.waiting = true;
             let name = format!("{}-{}.png", style.id(), ["play", "account", "log", "settings"][tab as usize]);
             let (path, done) = (shots.dir.join(name), shots.done.clone());

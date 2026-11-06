@@ -15,6 +15,7 @@ mod os;
 mod prism;
 mod secret;
 mod settings;
+mod skin3d;
 mod worlds;
 mod status;
 mod theme;
@@ -116,6 +117,7 @@ struct App {
     head_pixels: std::collections::HashMap<String, Vec<u8>>,
     head_textures: std::collections::HashMap<String, egui::TextureHandle>,
     head_asked: std::collections::HashSet<String>,
+    skins: std::collections::HashMap<String, skin3d::Skin>,
     pending_play: Option<(bool, game::Target)>,
     crash: Option<crash::Report>,
     probes: std::collections::HashMap<String, (status::Probe, Instant)>,
@@ -181,6 +183,7 @@ impl App {
             head_pixels: Default::default(),
             head_textures: Default::default(),
             head_asked: Default::default(),
+            skins: Default::default(),
             pending_play: None,
             crash: None,
             probes: Default::default(),
@@ -241,6 +244,14 @@ impl App {
         let texture = ctx.load_texture(format!("head-{uuid}"), image, egui::TextureOptions::NEAREST);
         self.head_textures.insert(uuid.to_owned(), texture.clone());
         Some(texture)
+    }
+
+    fn ensure_skin(&mut self, ctx: &egui::Context, uuid: &str) {
+        if self.skins.contains_key(uuid) {
+            return;
+        }
+        let rgba = heads::skin_cached(&self.heads_dir, uuid).unwrap_or_else(|| skin3d::placeholder(kit::t().accent));
+        self.skins.insert(uuid.to_owned(), skin3d::Skin::new(ctx, &format!("skin-{uuid}"), &rgba));
     }
 
     fn save(&mut self) {
@@ -602,6 +613,7 @@ impl App {
                 Event::Head(uuid, head) => {
                     if let Some(head) = head {
                         self.head_textures.remove(&uuid);
+                        self.skins.remove(&uuid);
                         self.head_pixels.insert(uuid, head);
                     }
                 }
