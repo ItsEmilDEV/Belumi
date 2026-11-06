@@ -37,12 +37,21 @@ A build without the feature says so in chat once when the switch is on.
 | Microphone mode | Push to talk | or voice activation |
 | Push-to-talk key | V | held to transmit |
 | Mute key | K | toggles muting |
+| Voice menu key | U | opens the voice menu |
 | Activation level | -50 dB | voice activation mode only |
 | Microphone volume | 100% | 50% to 200% |
 | Voice volume | 100% | 50% to 200% |
 
 All of them live in `belumi.toml`. The HUD shows `Mic on`, `Mic ready` or `Mic muted` and who is speaking, in the HUD
 corner.
+
+## Voice menu
+
+Press U (changeable) on a server with voice chat to open the menu: mute and deafen, the groups (Enter joins or leaves one;
+a group with a password points you to `/voice group join NAME PASSWORD`) and the players with their volume. Up and Down
+(or the mouse wheel) pick a row, Left and Right change a player's volume in steps of 10% (0 to 300%), R or Enter puts it
+back to 100%. Escape or U closes it. You stand still while it is open. Creating a group still needs
+`/voice group create NAME`, because the menu has no text field.
 
 ## How sound is placed
 
