@@ -215,14 +215,18 @@ mod tests {
         assert!(cached(dir.path(), "ab-cd").is_none());
         assert!(is_stale(dir.path(), "ab-cd"));
         std::fs::write(path(dir.path(), "ab-cd"), vec![1u8; BYTES]).unwrap();
+        assert!(is_stale(dir.path(), "ab-cd"), "a head without its skin file is refetched");
+        std::fs::write(skin_path(dir.path(), "ab-cd"), vec![1u8; SKIN_BYTES]).unwrap();
         assert_eq!(cached(dir.path(), "ab-cd").unwrap().len(), BYTES);
+        assert_eq!(skin_cached(dir.path(), "ab-cd").unwrap().len(), SKIN_BYTES);
         assert!(!is_stale(dir.path(), "ab-cd"));
     }
 
     #[test]
     #[ignore = "asks Mojang's servers"]
     fn a_real_profile_gives_a_head() {
-        let head = fetch("069a79f444e94726a5befca90e38aaf5").unwrap();
+        let (head, skin) = fetch("069a79f444e94726a5befca90e38aaf5").unwrap();
         assert_eq!(head.len(), 256);
+        assert_eq!(skin.len(), SKIN_BYTES);
     }
 }
