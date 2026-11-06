@@ -47,11 +47,17 @@ corner.
 
 ## Voice menu
 
-Press U (changeable) on a server with voice chat to open the menu: mute and deafen, the groups (Enter joins or leaves one;
-a group with a password points you to `/voice group join NAME PASSWORD`) and the players with their volume. Up and Down
-(or the mouse wheel) pick a row, Left and Right change a player's volume in steps of 10% (0 to 300%), R or Enter puts it
-back to 100%. Escape or U closes it. You stand still while it is open. Creating a group still needs
-`/voice group create NAME`, because the menu has no text field.
+Press U (changeable) on a server with voice chat to open the voice screen. The mouse is free while it is open.
+
+- Two buttons at the top mute the microphone and deafen you; the dot shows whether the voice connection is up.
+- **Groups**: every group with its member count; Join enters it, Leave (green row, your own group) leaves it. A group with a
+  password fills its name into the form below and waits for the password.
+- **Players**: each player with a badge (muted, deafened, no voice chat) and a volume: `-` and `+` change it in steps of
+  10% (0 to 300%), a click on the percentage resets it to 100%. The wheel scrolls long lists.
+- **Create or join a group**: type a name and an optional password, then Create. Join takes the name of an existing group
+  (and its password). Enter does the sensible one of the two, Tab switches between the fields.
+
+Escape, U (with no field focused) or a click outside the panel closes it.
 
 ## How sound is placed
 
