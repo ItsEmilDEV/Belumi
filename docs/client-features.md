@@ -22,6 +22,38 @@ extras) are on the same page as quick toggles.
 | Client plugins | | WebAssembly plugins from `belumi-plugins/` ([client-plugins.md](client-plugins.md)) |
 | Voice chat | V (push to talk), K (mute) | Simple Voice Chat compatible ([voice-chat.md](voice-chat.md)) |
 
+## Client screen (Right Shift)
+
+Right Shift (changeable in `belumi-modules.toml`, `menu_key`) opens the client screen. It starts in the **HUD builder**: every HUD
+module can be dragged where you want it, with magnets to the screen's edges, centre lines and the other modules (hold Shift to
+switch them off), the wheel resizes the chosen module, the arrows nudge it. The bar at the bottom switches modules on and off;
+**Starter** turns on a first set. The layout is saved in `belumi-modules.toml` and survives other window sizes.
+
+| HUD module | What it shows |
+|---|---|
+| Keystrokes | WASD, jump and the mouse buttons as you press them, with the clicks per second on the buttons (keys follow your bindings) |
+| CPS | Clicks per second of both mouse buttons |
+| Armor and items | Armor, main hand and off hand with the durability left, coloured and flashing when it is nearly gone (break warning) |
+| Effects | Active effects with level and time left, red when they run out |
+| Clock | The time, with or without seconds |
+| Recording | A blinking REC light with the time of the running recording |
+| Inventory | Your 27 storage slots as a small grid |
+
+The **Modules** button leads to the modules without a place on the HUD: toggle sprint and sneak, freelook (hold Left Alt: the
+camera looks around while the player keeps his direction), crosshair editor (shape, colour, size, thickness, gap, outline,
+dot, spread while moving), item tooltips with ids and durability, break warning, chat tools, auto-reconnect, fullbright, mouse
+tweaks, sort buttons, own name tag, and the replays.
+
+**Chat tools** (Modules > Chat tools): time stamps, merging of repeated lines (`(x3)`), words that hide a line, words that
+colour a line, a bell when your name is written, and a history of up to 2000 lines. `/find TEXT` searches the history.
+
+**Replays and clips**: with recording on, every session is saved to `replays/` (all server packets plus your own movement).
+F10 saves a clip of the last 30 seconds (the length is set on the page), F6 a bookmark; a notification confirms both. The
+page lists recordings and clips; Play opens one with a free camera. While it plays: Space pauses, `[` and `]` change the
+speed (0.25x to 16x), the arrows jump 5 s (Shift: 30 s), Home restarts, V switches between the free camera and the
+player's view, and Right Shift opens the controls with a clickable timeline. Jumping back restarts the session at that time.
+The oldest recordings are deleted past the limit (`keep`, 20).
+
 ## Builds and features
 
 The plugin host and voice chat are cargo features of `horizon-client`, on by default since the launcher starts that build:
@@ -42,6 +74,8 @@ With the switch on but the feature missing, the game says so in chat once.
 | `belumi-waypoints.toml` | Waypoints, grouped by world or server and dimension |
 | `belumi-maps/<world or server>/<dimension>/r.X.Z.bin` | The explored world map, one file per region of 32x32 chunks (changed regions are written in the background) |
 | `belumi-maps/<world or server>/<dimension>/cave-N/r.X.Z.bin` | The same for caves and the Nether: one map per 16-block height band `N` (`y >> 4`) of where you were |
+| `belumi-modules.toml` | The HUD layout and the settings of the modules (crosshair, chat tools, freelook, replays) |
+| `replays/*.brpl`, `*.clips.json` | Recorded sessions and their clips |
 | `belumi-plugins/<name>/` | Client plugins |
 
 ## Performance
