@@ -13,6 +13,7 @@ extras) are on the same page as quick toggles.
 | Map overlays | Settings, `/map` | Chunk borders and slime chunks (tinted green) on both maps. Slime chunks need the world seed: singleplayer knows it, on a server type `/map seed NUMBER` (kept per server). `/map grid`, `/map slime` toggle, `/map export` writes a PNG of everything explored to `map-exports/` |
 | Death waypoint | automatic | A waypoint "Death" is set where you died (replacing the last one) when waypoints are on |
 | Interface style | Settings | Minecraft (translucent black boxes) or Modern (flat, soft corners, thin edge) for the HUD panels, the voice panel and the minimap rim |
+| Player-list view | Tab (held) | While the player list is held, both maps show players as their face with the name below and mobs as their spawn egg (with the name they were given, if any) instead of dots |
 | World map | M | Overlay of everything you explored, saved per world and server. Left button drags, arrows/WASD move, wheel zooms, C centres on you, PageUp/PageDown change the layer (Home: surface, End: follow you), B sets a waypoint at the crosshair, Enter teleports there (needs permission); the player stands still while it is open |
 | Waypoints | B | Saves your position; `/waypoint add [name]`, `remove NAME`, `list`, `clear`, `import FOLDER_OR_FILE` (Xaero waypoint files, dimension from the `dim%N` folder, duplicates skipped); labels in the world, on the maps and a nearest list |
 | Packet inspector | F8 | Live packet rates and sizes, top packets by bytes, the latest packets |
