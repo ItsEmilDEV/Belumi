@@ -149,6 +149,7 @@ const GERMAN: &[(&str, &str)] = &[
     ("Diagnose is running; the game opens a few times.", "Diagnose läuft; das Spiel öffnet sich mehrmals."),
     ("Report ready: {}", "Bericht fertig: {}"),
     ("Runs benchmarks and screenshots in a scratch folder and collects a report to send for support.", "Führt Benchmarks und Screenshots in einem Arbeitsordner aus und sammelt einen Bericht für den Support."),
+    ("Something went wrong inside the launcher. Try again.", "Im Launcher ist etwas schiefgelaufen. Versuch es nochmal."),
     ("Starts Minecraft as {} on {}", "Startet Minecraft als {} auf {}"),
     ("Starts Minecraft {} as {} on {}", "Startet Minecraft {} als {} auf {}"),
     ("Switch", "Wechseln"),

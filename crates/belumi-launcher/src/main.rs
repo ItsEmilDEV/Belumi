@@ -70,6 +70,15 @@ enum Source {
     Prism,
 }
 
+/// Runs `work` on a thread; a panic reports a failure instead of leaving the window busy forever.
+fn guarded(tx: Notifier, work: impl FnOnce() + Send + 'static) {
+    std::thread::spawn(move || {
+        if std::panic::catch_unwind(std::panic::AssertUnwindSafe(work)).is_err() {
+            let _ = tx.send(Event::Failed(i18n::tr("Something went wrong inside the launcher. Try again.")));
+        }
+    });
+}
+
 fn unix_now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -86,6 +95,7 @@ struct App {
     prism_modified: Option<SystemTime>,
     last_prism_check: Instant,
     last_renewal_try: Instant,
+    renewal_gap: Duration,
     code: Option<DeviceCode>,
     status: String,
     busy: bool,
@@ -150,6 +160,7 @@ impl App {
             prism_modified: None,
             last_prism_check: Instant::now(),
             last_renewal_try: Instant::now(),
+            renewal_gap: Duration::from_secs(120),
             code: None,
             status: "Not signed in.".into(),
             busy: false,
@@ -265,7 +276,7 @@ impl App {
         let epoch = self.epoch.clone();
         self.status = i18n::tr("Asking Microsoft for a sign-in code...");
         let (tx, cancel) = (self.tx.clone(), self.cancel.clone());
-        std::thread::spawn(move || {
+        guarded(self.tx.clone(), move || {
             let result = (|| {
                 let code = auth::start_device_code(&client_id)?;
                 os::open_url(&code.verification_uri);
@@ -300,7 +311,7 @@ impl App {
         let tx = self.tx.clone();
         let mine = self.epoch.fetch_add(1, Ordering::SeqCst) + 1;
         let epoch = self.epoch.clone();
-        std::thread::spawn(move || {
+        guarded(self.tx.clone(), move || {
             let token = if saved.refresh_token.is_empty() {
                 secret::lookup(&saved.uuid).unwrap_or_default()
             } else {
@@ -428,13 +439,14 @@ impl App {
     fn watch_renewal(&mut self) {
         let due = self.source == Some(Source::Own)
             && !self.busy
-            && self.last_renewal_try.elapsed() > Duration::from_secs(120)
+            && self.last_renewal_try.elapsed() > self.renewal_gap
             && self
                 .account
                 .as_ref()
                 .is_some_and(|a| a.expires_at <= unix_now() + 900);
         if due {
             self.last_renewal_try = Instant::now();
+            self.renewal_gap = (self.renewal_gap * 2).min(Duration::from_secs(3600));
             self.renew();
         }
     }
@@ -555,6 +567,7 @@ impl App {
                     self.code = Some(code);
                 }
                 Event::SignedIn(account) => {
+                    self.renewal_gap = Duration::from_secs(120);
                     self.busy = false;
                     self.code = None;
                     self.status = i18n::trf("Signed in as {}.", &[&account.name]);

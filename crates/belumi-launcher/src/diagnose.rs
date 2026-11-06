@@ -100,7 +100,7 @@ fn client_run(settings: &Settings, dir: &Path, shaders: bool, args: &[String], l
             None
         }
     };
-    (code, started.elapsed().as_secs_f64(), std::fs::read_to_string(&log_path).unwrap_or_default())
+    (code, started.elapsed().as_secs_f64(), crate::ui::tail(&log_path, 2_000_000))
 }
 
 fn system_notes() -> Value {
@@ -207,7 +207,7 @@ pub fn run(settings: &Settings, account: Option<&Account>, server: Option<&str>,
             Ok(mut child) => wait(&mut child, SERVER_LIMIT + Duration::from_secs(30)),
             Err(_) => None,
         };
-        let log = std::fs::read_to_string(&log_path).unwrap_or_default();
+        let log = crate::ui::tail(&log_path, 2_000_000);
         let shots = std::fs::read_dir(dir.join("shots")).map(|d| d.flatten().count()).unwrap_or(0);
         let _ = std::fs::remove_dir_all(dir.join("game"));
         summary["server"] = json!({
