@@ -32,15 +32,21 @@ switch them off), the wheel resizes the chosen module, the arrows nudge it. The 
 | HUD module | What it shows |
 |---|---|
 | Keystrokes | WASD, jump and the mouse buttons as you press them, with the clicks per second on the buttons (keys follow your bindings) |
-| CPS | Clicks per second of both mouse buttons |
+| CPS | Clicks per second of both mouse buttons, green from 12, yellow from 7 |
 | Armor and items | Armor, main hand and off hand with the durability left, coloured and flashing when it is nearly gone (break warning) |
-| Effects | Active effects with level and time left, red when they run out |
+| Effects | Active effects with level and time left, shortest first; yellow under 30 s, blinking red under 10 s |
 | Clock | The time, with or without seconds |
 | Recording | A blinking REC light with the time of the running recording |
 | Inventory | Your 27 storage slots as a small grid |
+| FPS | Frames per second, green from 60 |
+| Ping | Your latency on a server, green up to 80 ms |
+| Coordinates | Your block position |
+
+Keystrokes light up with a short fade. Every module except armor and inventory has a size and a background setting in the
+builder (0 % leaves only the text).
 
 The **Modules** button leads to the modules without a place on the HUD: toggle sprint and sneak, freelook (hold Left Alt: the
-camera looks around while the player keeps his direction), crosshair editor (shape, colour, size, thickness, gap, outline,
+camera looks around while the player keeps his direction), crosshair editor (presets, shape, colour, size, thickness, gap, outline,
 dot, spread while moving), item tooltips with ids and durability, break warning, chat tools, auto-reconnect, fullbright, mouse
 tweaks, sort buttons, own name tag, and the replays.
 
