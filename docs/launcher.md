@@ -39,7 +39,7 @@ cargo run --release -p belumi-launcher   # or: cargo run -p belumi-launcher
 ## Looks
 
 Settings -> Look switches between three styles: Modern (dark, calm), Modern Glass (gradient with translucent panels) and
-Minecraft (square, bevelled, tiled stone; own art, no Mojang textures). The choice is saved as `style` in `launcher.json`.
+Pixel (parchment, wood and chunky outlines in the spirit of a farm sim; own art, no game assets; the old `minecraft` value still loads). The choice is saved as `style` in `launcher.json`.
 Tokens and rules are in `DESIGN.md`. The game log stays solid in every style, and a test checks that text, muted text,
 danger text and text on the accent colour keep their contrast on every surface of every style.
 

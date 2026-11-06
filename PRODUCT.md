@@ -14,7 +14,7 @@ The Belumi launcher signs in Microsoft accounts (device code), keeps several acc
 
 ## Brand Personality
 
-Quick, honest, a little playful. Calm by default; the Minecraft style leans into the blocky game heritage without borrowing any of Mojang's art.
+Quick, honest, a little playful. Calm by default; the Pixel style is a cosy pixel-art look (parchment, wood, chunky outlines) drawn from scratch.
 
 ## Anti-references
 

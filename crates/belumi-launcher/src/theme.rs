@@ -5,16 +5,16 @@ use std::sync::atomic::{AtomicU8, Ordering};
 pub enum Style {
     Modern,
     Glass,
-    Minecraft,
+    Pixel,
 }
 
 impl Style {
-    pub const ALL: [Style; 3] = [Style::Modern, Style::Glass, Style::Minecraft];
+    pub const ALL: [Style; 3] = [Style::Modern, Style::Glass, Style::Pixel];
 
     pub fn parse(id: &str) -> Self {
         match id.trim().to_ascii_lowercase().as_str() {
             "glass" => Self::Glass,
-            "minecraft" => Self::Minecraft,
+            "pixel" | "minecraft" => Self::Pixel,
             _ => Self::Modern,
         }
     }
@@ -23,7 +23,7 @@ impl Style {
         match self {
             Self::Modern => "modern",
             Self::Glass => "glass",
-            Self::Minecraft => "minecraft",
+            Self::Pixel => "pixel",
         }
     }
 
@@ -31,7 +31,7 @@ impl Style {
         match self {
             Self::Modern => "Modern",
             Self::Glass => "Modern Glass",
-            Self::Minecraft => "Minecraft",
+            Self::Pixel => "Pixel",
         }
     }
 }
@@ -45,7 +45,7 @@ pub fn set(style: Style) {
 pub fn current() -> Style {
     match CURRENT.load(Ordering::Relaxed) {
         1 => Style::Glass,
-        2 => Style::Minecraft,
+        2 => Style::Pixel,
         _ => Style::Modern,
     }
 }
@@ -73,7 +73,7 @@ pub struct Theme {
     pub control_radius: u8,
     pub border: f32,
     pub button_padding: Vec2,
-    /// Square, bevelled and heavy-bordered (Minecraft).
+    /// Pixel-art boxes: notched corners, thick dark outlines, flat warm colours.
     pub bevel: bool,
     /// The background is a gradient painted behind translucent panels.
     pub glass: bool,
@@ -133,23 +133,23 @@ pub fn theme(style: Style) -> Theme {
             bevel: false,
             glass: true,
         },
-        Style::Minecraft => Theme {
-            bg: Color32::from_rgb(0x3b, 0x3b, 0x3b),
-            panel: Color32::from_rgb(0x2b, 0x2b, 0x2b),
-            nav: Color32::from_rgb(0x6f, 0x52, 0x30),
-            status_bar: Color32::from_rgb(0x4a, 0x36, 0x22),
-            card: Color32::from_rgb(0x4a, 0x4a, 0x4a),
-            control: Color32::from_rgb(0x52, 0x52, 0x52),
-            control_hover: Color32::from_rgb(0x60, 0x60, 0x60),
-            line: Color32::from_rgb(0x10, 0x10, 0x10),
-            accent: Color32::from_rgb(0x4a, 0x93, 0x22),
-            accent_dim: Color32::from_rgb(0x2f, 0x5a, 0x17),
+        Style::Pixel => Theme {
+            bg: Color32::from_rgb(0xf7, 0xe2, 0xab),
+            panel: Color32::from_rgb(0xef, 0xd3, 0x91),
+            nav: Color32::from_rgb(0xd7, 0xa4, 0x63),
+            status_bar: Color32::from_rgb(0xd7, 0xa4, 0x63),
+            card: Color32::from_rgb(0xff, 0xf1, 0xc9),
+            control: Color32::from_rgb(0xe6, 0xb8, 0x72),
+            control_hover: Color32::from_rgb(0xf3, 0xcd, 0x8c),
+            line: Color32::from_rgb(0x5a, 0x2e, 0x12),
+            accent: Color32::from_rgb(0x3f, 0x8a, 0x22),
+            accent_dim: Color32::from_rgb(0xbd, 0xdb, 0x82),
             on_accent: Color32::WHITE,
-            text: Color32::from_rgb(0xf2, 0xf2, 0xf2),
-            muted: Color32::from_rgb(0xdc, 0xdc, 0xdc),
-            ok: Color32::from_rgb(0x7c, 0xd6, 0x4b),
-            warn: Color32::from_rgb(0xff, 0xd1, 0x3a),
-            danger: Color32::from_rgb(0xff, 0xc2, 0xb5),
+            text: Color32::from_rgb(0x3b, 0x1d, 0x0a),
+            muted: Color32::from_rgb(0x5a, 0x38, 0x1b),
+            ok: Color32::from_rgb(0x2f, 0x6e, 0x17),
+            warn: Color32::from_rgb(0x8a, 0x4f, 0x00),
+            danger: Color32::from_rgb(0x8a, 0x14, 0x14),
             card_radius: 0,
             control_radius: 0,
             border: 2.0,

@@ -4,28 +4,28 @@ Mode: Operate. Surface: a 760x500 native window (egui). Three styles share one l
 
 ## Tokens
 
-| Token | Modern | Modern Glass | Minecraft |
+| Token | Modern | Modern Glass | Pixel |
 |---|---|---|---|
-| bg | #0E1015 | gradient #14102A to #0B1220 | #3B3B3B stone, 16 px tile pattern |
-| panel (nav, status) | #14171E | #FFFFFF at 6% over bg | #2B2B2B |
-| nav / status bar | #14171E | #FFFFFF at 12% / 10% | planks #6F5230 with grain / dirt #4A3622 under a grass strip |
-| card | #1B1F29 | #FFFFFF at 8%, 1 px #FFFFFF at 14% edge | #4A4A4A with bevel |
-| card hover | #242936 | #FFFFFF at 12% | #5A5A5A |
-| text | #E6E8EE | #F0EEFA | #F2F2F2 |
-| muted | #9AA1B2 | #B4B0CC | #C0C0C0 |
-| accent | #9B5CFF | #A981FF | #5DAA2F (grass green) |
-| accent dim | #2A1B52 | #A981FF at 22% | #3A6B1C |
-| on accent | #FFFFFF | #FFFFFF | #FFFFFF with 1 px #1D3A0C shadow |
-| ok / warn / danger | #4ADE80 / #FBBF24 / #F87171 | same | #7CD64B / #FFD13A / #E5503A |
+| bg | #0E1015 | gradient #14102A to #0B1220 | #F7E2AB parchment with flecks, framed in a tan board with 2 px #5A2E12 outlines |
+| panel (nav, status) | #14171E | #FFFFFF at 6% over bg | #EFD391 |
+| nav / status bar | #14171E | #FFFFFF at 12% / 10% | wooden table #D7A463 with seams; tabs are tan buttons, the active one cream with a green marker |
+| card | #1B1F29 | #FFFFFF at 8%, 1 px #FFFFFF at 14% edge | #FFF1C9 inset, notched corners |
+| card hover | #242936 | #FFFFFF at 12% | #F3CD8C |
+| text | #E6E8EE | #F0EEFA | #3B1D0A |
+| muted | #9AA1B2 | #B4B0CC | #5A381B |
+| accent | #9B5CFF | #A981FF | #3F8A22 (leaf green) |
+| accent dim | #2A1B52 | #A981FF at 22% | #BDDB82 |
+| on accent | #FFFFFF | #FFFFFF | #FFFFFF with 1 px #1B3D0C shadow |
+| ok / warn / danger | #4ADE80 / #FBBF24 / #F87171 | same | #2F6E17 / #8A4F00 / #8A1414 |
 | radius (card / control) | 12 / 8 | 16 / 10 | 0 / 0 |
-| border | 1 px #242833 | 1 px #FFFFFF at 14% | 2 px #101010 |
-| bevel | none | none | light #8A8A8A top-left, dark #1E1E1E bottom-right, 2 px |
+| border | 1 px #242833 | 1 px #FFFFFF at 14% | 2 px #5A2E12 |
+| bevel | none | none | 2 px white-at-47% lip top-left, black-at-20% lip bottom-right, corners notched 2 px |
 
-The accent follows the logo's violet in the two modern styles. Minecraft uses green so the play button reads as the game's own.
+The accent follows the logo's violet in the two modern styles. Pixel is a warm, cosy farm-sim look in the spirit of Stardew Valley (own art, no game assets): dark text on parchment, tan buttons, green for the one primary action.
 
 ## Type
 
-Proportional UI face (egui default). Scale: page title 22, card title 16 strong, body 14, muted 12.5, play button 16 strong. Minecraft style sets titles and buttons in the monospace face with no italics. Numerals in the log are monospace.
+Proportional UI face (egui default). Scale: page title 22, card title 16 strong, body 14, muted 12.5, play button 16 strong. The Pixel style sets everything in the bundled pixel face (Pixelify Sans). Numerals in the log are monospace.
 
 ## Spacing
 

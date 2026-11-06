@@ -2,8 +2,8 @@ use crate::game::Target;
 use crate::i18n::{self, tr, trf};
 use crate::icons::Icon;
 use crate::kit::{
-    Kind, action, apply_theme, avatar, card, dot, empty_state, face, muted, paint_ground, paint_planks,
-    paint_ground_strip, section, segmented, t, title, well,
+    Kind, action, apply_theme, avatar, card, dot, empty_state, face, muted, paint_ground, paint_board,
+    paint_ledge, section, segmented, t, title, well,
 };
 use crate::status::Probe;
 use crate::theme::{self, Style};
@@ -34,10 +34,11 @@ fn nav_item(ui: &mut egui::Ui, icon: Icon, label: &str, selected: bool) -> egui:
     let lift = ui.ctx().animate_value_with_time(response.id.with("nav"), if response.hovered() { 1.0 } else { 0.0 }, 0.12);
     let painter = ui.painter();
     if t.bevel {
+        let tab = if selected { rect } else { egui::Rect::from_min_max(rect.min, rect.max - vec2(10.0 - 6.0 * lift, 0.0)) };
+        let fill = if selected { t.card } else { crate::kit::mix_colors(t.control, t.control_hover, lift) };
+        painter.add(egui::Shape::Vec(crate::kit::bevel_shapes(tab.shrink2(vec2(0.0, 1.0)), fill, !selected, 2.0)));
         if selected {
-            painter.add(egui::Shape::Vec(crate::kit::bevel_shapes(rect, t.accent, true, 2.0)));
-        } else if lift > 0.01 {
-            painter.rect_filled(rect, 0.0, Color32::from_white_alpha((22.0 * lift) as u8));
+            painter.rect_filled(egui::Rect::from_min_size(tab.min + vec2(6.0, 8.0), vec2(6.0, rect.height() - 16.0)), 0.0, t.accent);
         }
     } else if selected {
         painter.rect_filled(rect, f32::from(t.control_radius), t.accent_dim);
@@ -47,15 +48,15 @@ fn nav_item(ui: &mut egui::Ui, icon: Icon, label: &str, selected: bool) -> egui:
     } else if lift > 0.01 {
         painter.rect_filled(rect, f32::from(t.control_radius), Color32::from_white_alpha((14.0 * lift) as u8));
     }
-    let color = if selected { t.text } else { t.muted };
+    let color = if selected || t.bevel { t.text } else { t.muted };
     let color = if lift > 0.01 && !selected { Color32::from_rgb(
         (f32::from(color.r()) + (f32::from(t.text.r()) - f32::from(color.r())) * lift) as u8,
         (f32::from(color.g()) + (f32::from(t.text.g()) - f32::from(color.g())) * lift) as u8,
         (f32::from(color.b()) + (f32::from(t.text.b()) - f32::from(color.b())) * lift) as u8,
     ) } else { color };
-    crate::icons::paint(painter, icon, egui::Rect::from_center_size(egui::pos2(rect.min.x + 22.0, rect.center().y), vec2(18.0, 18.0)), color);
-    let galley = painter.layout_no_wrap(label.to_owned(), face(15.0), color);
-    painter.galley(egui::pos2(rect.min.x + 40.0, rect.center().y - galley.size().y / 2.0), galley, color);
+    crate::icons::paint(painter, icon, egui::Rect::from_center_size(egui::pos2(rect.min.x + if t.bevel { 28.0 } else { 22.0 }, rect.center().y), vec2(18.0, 18.0)), color);
+    let galley = painter.layout_no_wrap(label.to_owned(), face(if t.bevel { 13.0 } else { 15.0 }), color);
+    painter.galley(egui::pos2(rect.min.x + if t.bevel { 42.0 } else { 40.0 }, rect.center().y - galley.size().y / 2.0), galley, color);
     response
 }
 
@@ -321,7 +322,7 @@ impl App {
                     painter.rect_filled(rect, radius, t.accent_dim);
                     painter.rect_stroke(rect, radius, Stroke::new(t.border.max(1.0) + if t.bevel { 0.0 } else { 0.5 }, t.accent), egui::StrokeKind::Inside);
                 } else if lift > 0.01 {
-                    painter.rect_filled(rect, radius, Color32::from_white_alpha((16.0 * lift) as u8));
+                    painter.rect_filled(rect, radius, if t.bevel { Color32::from_black_alpha((20.0 * lift) as u8) } else { Color32::from_white_alpha((16.0 * lift) as u8) });
                 }
             }
             let (color, label) = match &probe {
@@ -807,9 +808,6 @@ impl eframe::App for App {
             .exact_size(if theme.glass { 186.0 } else { 176.0 })
             .frame(egui::Frame::new().fill(if theme.bevel { Color32::TRANSPARENT } else { theme.nav }).inner_margin(egui::Margin::same(14)))
             .show(ui, |ui| {
-                if theme.bevel {
-                    paint_planks(ui.painter(), ui.max_rect().expand(14.0), ui.ctx());
-                }
                 let logo = self.logo.get_or_insert_with(|| {
                     let icon = eframe::icon_data::from_png_bytes(include_bytes!("../assets/logo-256.png")).unwrap_or_default();
                     let image = egui::ColorImage::from_rgba_unmultiplied([icon.width as usize, icon.height as usize], &icon.rgba);
@@ -832,7 +830,7 @@ impl eframe::App for App {
             .frame(egui::Frame::new().fill(if theme.bevel { Color32::TRANSPARENT } else { theme.status_bar }).inner_margin(egui::Margin::symmetric(16, 7)))
             .show(ui, |ui| {
                 if theme.bevel {
-                    paint_ground_strip(ui.painter(), ui.max_rect().expand2(vec2(16.0, 7.0)));
+                    paint_ledge(ui.painter(), ui.max_rect().expand2(vec2(16.0, 7.0)));
                 }
                 ui.horizontal_centered(|ui| {
                     let (word, color) = if self.playing {
@@ -854,6 +852,9 @@ impl eframe::App for App {
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(Color32::TRANSPARENT).inner_margin(egui::Margin::symmetric(22, 18)))
             .show(ui, |ui| {
+                if theme.bevel {
+                    paint_board(ui.painter(), ui.max_rect().expand2(vec2(16.0, 12.0)), ui.ctx());
+                }
                 egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| match self.tab {
                     Tab::Play => self.page_play(ui),
                     Tab::Account => self.page_account(ui),
