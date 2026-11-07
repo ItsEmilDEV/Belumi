@@ -11,6 +11,8 @@ if (-not $Version) {
 }
 # The programs carry the C runtime with them, so a clean Windows needs no Visual C++ redistributable.
 $env:RUSTFLAGS = "$env:RUSTFLAGS -C target-feature=+crt-static".Trim()
+# Opus (built from source with CMake) still declares CMake 3.x policies that CMake 4 refuses without this.
+$env:CMAKE_POLICY_VERSION_MINIMUM = "3.5"
 $features = if ($null -ne $env:BELUMI_FEATURES) { $env:BELUMI_FEATURES } else { "belumi" }
 $name = "belumi-$Version-windows-x64"
 $stage = Join-Path "dist" $name

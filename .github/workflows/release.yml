@@ -1,5 +1,7 @@
 name: Release
 
+# A tag vX.Y.Z builds the Linux files and the Windows files side by side; the release is created only when both are ready,
+# so there is never a release with half of its downloads. A tag with a "-" (v0.2.0-beta.1) becomes a prerelease.
 on:
   push:
     tags: ["v*"]
@@ -9,10 +11,8 @@ env:
 
 jobs:
   linux:
-    name: Linux archive
+    name: Linux archive, deb, rpm and AppImage
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,28 +26,25 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Build the archive
+      - name: Build the archive and the packages
         env:
           BELUMI_FEATURES: belumi
         run: packaging/build-release.sh "${GITHUB_REF_NAME#v}"
 
-      - name: Publish
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          flags=""
-          case "$GITHUB_REF_NAME" in *-*) flags="--prerelease" ;; esac
-          notes=(--generate-notes)
-          [ -f "docs/release-notes/${GITHUB_REF_NAME}.md" ] && notes=(--notes-file "docs/release-notes/${GITHUB_REF_NAME}.md")
-          gh release create "$GITHUB_REF_NAME" $flags --title "Belumi ${GITHUB_REF_NAME#v}" "${notes[@]}" \
-            dist/*.tar.gz dist/*.deb dist/*.rpm dist/*.AppImage dist/*.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: |
+            dist/*.tar.gz
+            dist/*.deb
+            dist/*.rpm
+            dist/*.AppImage
+            dist/*.sha256
+          if-no-files-found: error
 
   windows:
     name: Windows zip and installer
     runs-on: windows-latest
-    needs: linux
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -70,8 +67,36 @@ jobs:
           $version = "${{ github.ref_name }}".TrimStart("v")
           packaging/build-release.ps1 $version
 
-      - name: Add to the release
-        shell: pwsh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            dist/*.zip
+            dist/*.exe
+            dist/*.sha256
+          if-no-files-found: error
+
+  publish:
+    name: Create the release
+    runs-on: ubuntu-latest
+    needs: [linux, windows]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.ref_name }}" (Get-ChildItem dist -File | Where-Object { $_.Name -match '\.(zip|exe|sha256)$' }).FullName --clobber
+        run: |
+          ls -la dist
+          flags=""
+          case "$GITHUB_REF_NAME" in *-*) flags="--prerelease" ;; esac
+          notes=(--generate-notes)
+          [ -f "docs/release-notes/${GITHUB_REF_NAME}.md" ] && notes=(--notes-file "docs/release-notes/${GITHUB_REF_NAME}.md")
+          gh release create "$GITHUB_REF_NAME" $flags --title "Belumi ${GITHUB_REF_NAME#v}" "${notes[@]}" dist/*
