@@ -12,8 +12,11 @@ pub const PAGE: &str = "https://modrinth.com/shader/solas-shader";
 const VERSIONS_URL: &str = "https://api.modrinth.com/v2/project/solas-shader/version";
 /// Files are only taken from Modrinth's own download host.
 const CDN_PREFIX: &str = "https://cdn.modrinth.com/data/";
-/// The game version the pack should support.
-const GAME_VERSION: &str = "26.3";
+/// The one Solas version Belumi has been tested with. A newer Solas may look different or need things the client cannot do yet,
+/// so the launcher installs exactly this file (checked against `PINNED_SHA512`, not only against what Modrinth says).
+/// To move to a newer Solas: try it in the game, then change both lines.
+pub const PINNED_VERSION: &str = "3.9";
+const PINNED_SHA512: &str = "754f88b030fc26a6284bc7fdede886af494b227a67e716ce89c8ec5a185f8ad33d0aeac573245c5e39621ac5b24b4778d50ce566647135c2f1b2f63643901c69";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Pack {
@@ -29,10 +32,6 @@ struct Version {
     version_number: String,
     #[serde(default)]
     version_type: String,
-    #[serde(default)]
-    loaders: Vec<String>,
-    #[serde(default)]
-    game_versions: Vec<String>,
     #[serde(default)]
     files: Vec<File>,
 }
@@ -56,25 +55,18 @@ fn safe_name(name: &str) -> bool {
         && name.chars().all(|c| c.is_ascii_alphanumeric() || " ._-+()".contains(c))
 }
 
-/// The newest release for the game version (else the newest release) from Modrinth's version list, newest first.
-pub fn pick(json: &str) -> Option<Pack> {
+/// The pinned release from Modrinth's version list; `None` when it is gone or its file is not the tested one.
+pub fn pick(json: &str, version: &str, sha512: &str) -> Option<Pack> {
     let versions: Vec<Version> = serde_json::from_str(json).ok()?;
-    let usable = |v: &&Version| {
-        v.version_type == "release" && v.loaders.iter().any(|l| l == "iris" || l == "optifine")
-    };
-    let chosen = versions
-        .iter()
-        .filter(usable)
-        .find(|v| v.game_versions.iter().any(|g| g == GAME_VERSION))
-        .or_else(|| versions.iter().find(usable))?;
+    let chosen = versions.iter().find(|v| v.version_number == version && v.version_type == "release")?;
     let file = chosen.files.iter().find(|f| f.primary).or_else(|| chosen.files.first())?;
-    let sha512 = file.hashes.get("sha512")?.to_ascii_lowercase();
-    (file.url.starts_with(CDN_PREFIX) && safe_name(&file.filename) && sha512.len() == 128).then(|| Pack {
+    let listed = file.hashes.get("sha512")?.to_ascii_lowercase();
+    (listed == sha512.to_ascii_lowercase() && file.url.starts_with(CDN_PREFIX) && safe_name(&file.filename)).then(|| Pack {
         version: chosen.version_number.clone(),
         file: file.filename.clone(),
         url: file.url.clone(),
         size: file.size,
-        sha512,
+        sha512: listed,
     })
 }
 
@@ -114,7 +106,8 @@ pub fn download(dir: &Path) -> Result<String, String> {
         .map_err(|e| format!("Could not ask Modrinth: {e}"))?
         .into_string()
         .map_err(|e| e.to_string())?;
-    let pack = pick(&list).ok_or("Modrinth has no Solas release this launcher can use.")?;
+    let pack = pick(&list, PINNED_VERSION, PINNED_SHA512)
+        .ok_or("Modrinth no longer offers the Solas version Belumi was tested with, or its file changed. Nothing was installed.")?;
     std::fs::create_dir_all(dir).map_err(|e| format!("Could not create {}: {e}", dir.display()))?;
     let target = dir.join(&pack.file);
     let part = dir.join(format!("{}.part", pack.file));
@@ -166,21 +159,22 @@ mod tests {
     }
 
     #[test]
-    fn the_newest_release_for_the_game_version_is_chosen() {
+    fn only_the_pinned_version_with_the_tested_file_is_chosen() {
         let sha = "a".repeat(128);
+        let other = "c".repeat(128);
         let cdn = "https://cdn.modrinth.com/data/X/versions/Y/";
         let list = format!(
             "[{},{},{}]",
-            entry("4.0-beta", "beta", &["26.3"], &["iris"], "Solas Shader V4.0b.zip", &format!("{cdn}a.zip"), &sha),
+            entry("4.0", "release", &["26.3"], &["iris"], "Solas Shader V4.0.zip", &format!("{cdn}a.zip"), &other),
             entry("3.9", "release", &["26.2", "26.3"], &["iris", "optifine"], "Solas Shader V3.9.zip", &format!("{cdn}b.zip"), &sha),
-            entry("3.8", "release", &["26.2"], &["iris"], "Solas Shader V3.8.zip", &format!("{cdn}c.zip"), &sha),
+            entry("3.8", "release", &["26.2"], &["iris"], "Solas Shader V3.8.zip", &format!("{cdn}c.zip"), &other),
         );
-        let pack = pick(&list).unwrap();
+        let pack = pick(&list, "3.9", &sha).unwrap();
         assert_eq!((pack.version.as_str(), pack.file.as_str()), ("3.9", "Solas Shader V3.9.zip"));
-        // Without a release for 26.3 the newest release still counts.
-        let older = format!("[{}]", entry("3.8", "release", &["26.2"], &["iris"], "Solas Shader V3.8.zip", &format!("{cdn}c.zip"), &sha));
-        assert_eq!(pick(&older).unwrap().version, "3.8");
-        assert!(pick("[]").is_none() && pick("garbage").is_none());
+        // A newer release does not matter, and a file that is not the tested one is refused.
+        assert!(pick(&list, "3.9", &other).is_none(), "the checksum has to be the tested one");
+        assert!(pick(&list, "5.0", &sha).is_none(), "the pinned version is gone");
+        assert!(pick("[]", "3.9", &sha).is_none() && pick("garbage", "3.9", &sha).is_none());
     }
 
     #[test]
@@ -195,10 +189,8 @@ mod tests {
             ("solas.zip.exe", good),
         ] {
             let list = format!("[{}]", entry("3.9", "release", &["26.3"], &["iris"], file, url, &sha));
-            assert!(pick(&list).is_none(), "{file} {url}");
+            assert!(pick(&list, "3.9", &sha).is_none(), "{file} {url}");
         }
-        let short = format!("[{}]", entry("3.9", "release", &["26.3"], &["iris"], "p.zip", good, "abc"));
-        assert!(pick(&short).is_none(), "a checksum is required");
     }
 
     #[test]
@@ -217,7 +209,7 @@ mod tests {
     fn real_download_gets_a_checked_zip_from_modrinth() {
         let dir = tempfile::tempdir().unwrap();
         let name = download(dir.path()).unwrap();
-        assert!(name.to_ascii_lowercase().starts_with("solas") && name.ends_with(".zip"), "{name}");
+        assert_eq!(name, format!("Solas Shader V{PINNED_VERSION}.zip"));
         let size = std::fs::metadata(dir.path().join(&name)).unwrap().len();
         assert!(size > 100_000, "{size}");
         assert_eq!(installed(dir.path()).as_deref(), Some(name.as_str()));

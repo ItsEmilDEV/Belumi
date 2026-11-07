@@ -47,10 +47,12 @@ cannot change itself: update it with the package manager or the installer. Detai
 ## Shaders (Solas)
 
 Belumi's look is the Solas shader pack by Septonious. Solas is "All Rights Reserved", so Belumi does not ship it: on the first
-start the Play page asks "Download Solas?" and, on yes, the launcher fetches the newest release for 26.3 from Modrinth (the
-author's official page), checks its size and SHA-512 and saves it in the game folder's `shaderpacks`. The game picks it by itself
+start the Play page asks "Download Solas?" and, on yes, the launcher fetches **Solas 3.9**, the version Belumi has been tested with, from Modrinth (the
+author's official page), checks its size and SHA-512 (against the tested file, not only against what Modrinth reports) and saves it in the game folder's `shaderpacks`. The game picks it by itself
 the first time it finds a Solas pack there. "Not now" asks once and never again; Settings, Shaders has the button and the link to
-the Modrinth page. Anything but Modrinth's download host, or a file without a checksum, is refused.
+the Modrinth page. Anything but Modrinth's download host, or a file that is not the tested one, is refused. A newer Solas is
+not installed automatically, because it may look different or need things the client cannot do yet; after trying one in the game,
+move `PINNED_VERSION` and `PINNED_SHA512` in `crates/belumi-launcher/src/shaders.rs`.
 
 ## Discord
 
