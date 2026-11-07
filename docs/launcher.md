@@ -85,8 +85,7 @@ Prism's app.
   the file every few seconds, picks up the renewed token, and reads it once more right before
   every start. If the token has expired it says so: open Prism once, the launcher continues
   by itself.
-- Priority: the Belumi app's own sign-in (once Mojang approved the client ID) wins; Prism is the
-  fallback while it is not available.
+- Priority: the Belumi app's own sign-in wins; Prism is the fallback while it is not available.
 - "Sign out" also turns the Prism login off.
 
 ## You need your own Azure app (client ID)

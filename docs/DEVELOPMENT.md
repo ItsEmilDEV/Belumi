@@ -229,13 +229,13 @@ SIGTERM skips the game's stop path. `BELUMI_PROFILE=SECONDS` logs a tick profile
 
 `crates/belumi-launcher` (egui): Microsoft device-code sign-in and starting the client via
 `--session-stdin`. See `docs/launcher.md`. The Azure client ID is `BUILT_IN_CLIENT_ID` in
-`crates/belumi-launcher/src/settings.rs`; Mojang must approve it (https://aka.ms/mce-reviewappid)
-before the last sign-in step works. Never use another app's client ID.
+`crates/belumi-launcher/src/settings.rs`; Mojang has approved it (https://aka.ms/mce-reviewappid), so the last sign-in
+step works. A fork needs its own client ID and its own approval. Never use another app's client ID.
 
 ## Open work
 
 1. Play longer on real 26.2 servers and fix what `skipped undecodable packet` reports.
-2. Mojang approval of the client ID; then the launcher's own sign-in replaces the Prism login.
+2. Keep an eye on the launcher's own sign-in on real accounts (Prism stays as a fallback).
 
 ## References
 
