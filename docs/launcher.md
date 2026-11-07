@@ -44,6 +44,14 @@ again). If there is one you get a desktop notification (Linux), the status line 
 `horizon-client` next to the running launcher and offers **Restart now**. A launcher installed system-wide (`/usr`, a package)
 cannot change itself: update it with the package manager or the installer. Details: [releases.md](releases.md).
 
+## Shaders (Solas)
+
+Belumi's look is the Solas shader pack by Septonious. Solas is "All Rights Reserved", so Belumi does not ship it: on the first
+start the Play page asks "Download Solas?" and, on yes, the launcher fetches the newest release for 26.3 from Modrinth (the
+author's official page), checks its size and SHA-512 and saves it in the game folder's `shaderpacks`. The game picks it by itself
+the first time it finds a Solas pack there. "Not now" asks once and never again; Settings, Shaders has the button and the link to
+the Modrinth page. Anything but Modrinth's download host, or a file without a checksum, is refused.
+
 ## Discord
 
 Settings, Discord: "Show Belumi on my Discord profile" (launcher and game; the launcher starts the game with

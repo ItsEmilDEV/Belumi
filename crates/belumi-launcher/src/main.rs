@@ -20,6 +20,7 @@ mod worlds;
 mod status;
 mod theme;
 mod ui;
+mod shaders;
 mod update;
 mod versions;
 
@@ -63,6 +64,7 @@ enum Event {
     Diagnosed(Result<std::path::PathBuf, String>),
     Update(Option<update::Release>),
     Updated(Result<(), String>),
+    Shaders(Result<String, String>),
     Head(String, Option<Vec<u8>>),
 }
 
@@ -124,6 +126,11 @@ struct App {
     update_error: Option<String>,
     /// The start-up check found an update the player has not been told about yet.
     update_announced: bool,
+    /// The Solas download runs.
+    shaders_busy: bool,
+    /// The Solas pack's file name when the game folder has one; looked at again every few seconds.
+    solas: Option<String>,
+    solas_checked: Option<Instant>,
     /// The player pressed "Check now" and waits for an answer.
     update_manual: bool,
     shots: Option<ui::Shots>,
@@ -211,6 +218,9 @@ impl App {
             update_done: None,
             update_error: None,
             update_announced: false,
+            shaders_busy: false,
+            solas: None,
+            solas_checked: None,
             update_manual: false,
             shots: ui::Shots::from_env(),
             heads_dir: paths.config_dir().join("heads"),
@@ -250,6 +260,36 @@ impl App {
         std::thread::spawn(move || {
             let found = update::check(channel, env!("CARGO_PKG_VERSION")).unwrap_or(None);
             let _ = tx.send(Event::Update(found));
+        });
+    }
+
+    fn shader_dir(&self) -> std::path::PathBuf {
+        shaders::dir_of(&worlds::game_dir(&self.settings.game_dir))
+    }
+
+    /// Whether the game folder has Solas, looked up at most every five seconds.
+    fn refresh_solas(&mut self) {
+        if self.solas_checked.is_some_and(|t| t.elapsed() < Duration::from_secs(5)) {
+            return;
+        }
+        self.solas_checked = Some(Instant::now());
+        self.solas = shaders::installed(&self.shader_dir());
+    }
+
+    /// Downloads the Solas shader pack from Modrinth (after the player asked for it).
+    fn download_solas(&mut self) {
+        if self.shaders_busy {
+            return;
+        }
+        self.shaders_busy = true;
+        self.settings.solas_asked = true;
+        let _ = self.settings.save(&self.settings_path);
+        self.status = i18n::tr("Downloading the Solas shader pack from Modrinth...");
+        let (tx, dir) = (self.tx.clone(), self.shader_dir());
+        std::thread::spawn(move || {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| shaders::download(&dir)))
+                .unwrap_or_else(|_| Err("Something went wrong while downloading.".to_owned()));
+            let _ = tx.send(Event::Shaders(result));
         });
     }
 
@@ -711,6 +751,14 @@ impl App {
                         self.status = i18n::trf("Update available: {}", &[&found.tag]);
                     }
                     self.update = release;
+                }
+                Event::Shaders(result) => {
+                    self.shaders_busy = false;
+                    self.solas_checked = None;
+                    self.status = match result {
+                        Ok(file) => i18n::trf("Installed {}. The game uses it from the next start.", &[&file]),
+                        Err(e) => e,
+                    };
                 }
                 Event::Updated(result) => {
                     self.updating = false;

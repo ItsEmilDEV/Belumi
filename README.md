@@ -77,6 +77,12 @@ The game needs prepared Minecraft resources from your own installation; see [doc
 - [Releases and updates](docs/releases.md)
 - [Architecture](docs/ARCHITECTURE.md), [Roadmap](docs/ROADMAP.md), [Decisions](docs/DECISIONS.md)
 
+## Credits
+
+- The default look is the shader pack **Solas** by Septonious. It is not part of Belumi: the launcher offers to download it
+  from [Modrinth](https://modrinth.com/shader/solas-shader) (all rights reserved by its author).
+- Belumi is built on [Horizon](https://github.com/horizon-rust/horizon).
+
 ## License
 
 MIT. Horizon is Copyright (c) 2026 Ludovic Marie and the Horizon contributors, also MIT; its notice is kept in

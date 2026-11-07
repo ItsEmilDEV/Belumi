@@ -47,6 +47,8 @@ pub struct Settings {
     #[serde(rename = "account", skip_serializing_if = "Option::is_none")]
     legacy_account: Option<SavedAccount>,
     pub check_updates: bool,
+    /// The player was asked whether to download the Solas shader pack (the question comes once).
+    pub solas_asked: bool,
     /// Discord Rich Presence of the launcher and, through `BELUMI_NO_DISCORD`, of the game.
     pub discord_presence: bool,
     /// The launcher's presence names the signed-in account.
@@ -110,6 +112,7 @@ impl Default for Settings {
             active_account: String::new(),
             legacy_account: None,
             check_updates: true,
+            solas_asked: false,
             discord_presence: true,
             discord_show_account: false,
             update_channel: "stable".into(),

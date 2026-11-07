@@ -147,6 +147,33 @@ impl App {
     }
 
     fn banners(&mut self, ui: &mut egui::Ui) {
+        if self.solas.is_none() && (!self.settings.solas_asked || self.shaders_busy) {
+            card(ui, |ui| {
+                ui.horizontal(|ui| {
+                    crate::icons::icon(ui, Icon::Download, 18.0, t().accent);
+                    ui.vertical(|ui| {
+                        ui.label(RichText::new(tr("Belumi looks best with the Solas shader pack")).strong());
+                        ui.label(muted(tr(
+                            "Solas is made by Septonious (all rights reserved). It is downloaded from Modrinth, the author's own page, and is not part of Belumi.",
+                        )));
+                    });
+                });
+                ui.horizontal_wrapped(|ui| {
+                    if self.shaders_busy {
+                        ui.add(egui::ProgressBar::new(0.0).animate(true).desired_width(180.0));
+                    } else {
+                        if action(ui, Kind::Primary, Some(Icon::Download), &tr("Download Solas"), true, vec2(0.0, 32.0)).clicked() {
+                            self.download_solas();
+                        }
+                        if action(ui, Kind::Secondary, None, &tr("Not now"), true, vec2(0.0, 32.0)).clicked() {
+                            self.settings.solas_asked = true;
+                            let _ = self.settings.save(&self.settings_path);
+                        }
+                        ui.hyperlink_to(tr("Open the Modrinth page"), crate::shaders::PAGE);
+                    }
+                });
+            });
+        }
         if let Some(release) = self.update.clone() {
             card(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -785,6 +812,25 @@ impl App {
             }
             ui.label(muted(tr("Drop a shader pack (.zip) here to add it")));
         });
+        section(ui, &tr("Shaders"));
+        card(ui, |ui| {
+            match self.solas.clone() {
+                Some(file) => {
+                    ui.label(trf("Solas is installed: {}", &[&file]));
+                }
+                None => {
+                    ui.horizontal(|ui| {
+                        if action(ui, Kind::Secondary, Some(Icon::Download), &tr("Download Solas"), !self.shaders_busy, vec2(0.0, 28.0)).clicked() {
+                            self.download_solas();
+                        }
+                        ui.hyperlink_to(tr("Open the Modrinth page"), crate::shaders::PAGE);
+                    });
+                }
+            }
+            ui.label(muted(tr(
+                "Solas by Septonious, all rights reserved. Belumi downloads it from Modrinth and never ships it. The game picks it by itself the first time it finds it.",
+            )));
+        });
         section(ui, &tr("Discord"));
         card(ui, |ui| {
             changed |= ui
@@ -866,6 +912,7 @@ impl eframe::App for App {
             self.styled = true;
         }
         self.update_presence();
+        self.refresh_solas();
         if self.checks.is_empty() {
             self.checks = crate::check::run(&self.settings);
         }
