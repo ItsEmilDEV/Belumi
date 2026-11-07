@@ -1,0 +1,50 @@
+name: Packaging
+
+# Builds the .deb, the .rpm and the AppImage from stand-in programs, so a mistake in the packaging scripts shows up in a
+# minute instead of after the release build. Runs when packaging files change, or by hand.
+on:
+  push:
+    paths: ["packaging/**", ".github/workflows/packaging.yml"]
+  workflow_dispatch:
+
+jobs:
+  formats:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends rpm curl
+
+      - name: A stand-in release folder
+        run: |
+          stage="dist/belumi-0.0.0-linux-x86_64"
+          mkdir -p "$stage/bin" "$stage/share/applications" "$stage/share/icons/hicolor/512x512/apps"
+          cp /bin/true "$stage/bin/belumi-launcher"
+          cp /bin/true "$stage/bin/horizon-client"
+          cp packaging/belumi.desktop packaging/belumi-launcher.desktop "$stage/share/applications/"
+          cp packaging/belumi-game-512.png "$stage/share/icons/hicolor/512x512/apps/belumi.png"
+          cp LICENSE "$stage/LICENSE"
+          cp packaging/README-release.txt "$stage/README.txt"
+
+      - name: Build every format, as a release and as a prerelease
+        run: |
+          stage="dist/belumi-0.0.0-linux-x86_64"
+          for version in 0.0.0 0.0.0-beta.1; do
+            for format in deb rpm appimage; do
+              packaging/build-$format.sh "$stage" "$version" out
+            done
+          done
+          ls -la out
+
+      - name: Look inside
+        run: |
+          dpkg-deb --info out/belumi_0.0.0-beta.1_amd64.deb | grep -E "Version|Depends"
+          dpkg-deb --contents out/belumi_0.0.0-beta.1_amd64.deb | grep -E "usr/bin"
+          rpm -qp --requires out/belumi-0.0.0-0.beta.1.x86_64.rpm | grep -E "lib(asound|opus|vulkan|udev)"
+          rpm -qpl out/belumi-0.0.0-1.x86_64.rpm
+          chmod +x out/belumi-0.0.0-beta.1-x86_64.AppImage
+          out/belumi-0.0.0-beta.1-x86_64.AppImage --appimage-extract >/dev/null
+          test -x squashfs-root/AppRun && test -x squashfs-root/usr/bin/belumi-launcher

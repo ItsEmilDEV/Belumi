@@ -7,7 +7,8 @@ set -euo pipefail
 stage="${1:?stage folder (dist/belumi-<version>-linux-<arch>)}"
 version="${2:?version}"
 # Debian sorts a prerelease before its release with "~": 0.2.0~beta.1 comes before 0.2.0.
-version="${version//-/~}"
+file_version="$version"   # GitHub renames "~" in file names, so the file keeps the dash
+version="$(printf '%s' "$version" | tr - '~')"
 out="${3:?output folder}"
 case "$(uname -m)" in
   x86_64) arch=amd64 ;;
@@ -42,7 +43,7 @@ Description: Belumi, a Minecraft: Java Edition client and launcher written in Ru
 CONTROL
 
 mkdir -p "$out"
-deb="$out/belumi_${version}_${arch}.deb"
+deb="$out/belumi_${file_version}_${arch}.deb"
 if command -v dpkg-deb >/dev/null; then
   dpkg-deb --root-owner-group --build "$pkg" "$deb" >/dev/null
 else
