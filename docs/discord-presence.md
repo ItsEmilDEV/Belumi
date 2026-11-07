@@ -20,5 +20,5 @@ application's ID.
 
 While the ID is empty, the game starts no presence at all.
 
-Optional images `survival`, `creative`, `adventure` and `spectator` show the game mode as a small icon; upload them
-and set `MODE_IMAGES` to `true` in the same file.
+The images `survival`, `creative`, `adventure` and `spectator` show the game mode as a small icon; they are uploaded
+and `MODE_IMAGES` is `true` in the same file.
