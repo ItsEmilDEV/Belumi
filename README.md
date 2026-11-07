@@ -23,8 +23,8 @@ Minecraft installation.
 
 ## Status
 
-Early development. The launcher's own Microsoft sign-in waits for Mojang's approval of its application; until then
-it can reuse an account from Prism Launcher, and offline play works (the offline name starts as `Schnitzelblitz`).
+Early development. The launcher's own Microsoft sign-in is approved by Mojang;
+it can also reuse an account from Prism Launcher, and offline play works.
 
 ## Install
 
