@@ -58,6 +58,32 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Command>, 
     Ok(play.then_some(Command::Play(Request { offline, target })))
 }
 
+/// The key the launcher's secret store keeps a account's Minecraft session under.
+fn session_key(uuid: &str) -> String {
+    format!("{uuid}:session")
+}
+
+pub(crate) fn remember_session(account: &auth::Account) {
+    let _ = secret::store(
+        &session_key(&account.uuid),
+        &format!("{}\n{}", account.expires_at, account.access_token),
+    );
+}
+
+/// A still valid Minecraft session of `saved`, with at least 15 minutes left.
+pub(crate) fn cached_session(saved: &crate::settings::SavedAccount) -> Option<auth::Account> {
+    let text = secret::lookup(&session_key(&saved.uuid))?;
+    let (expires, token) = text.split_once('\n')?;
+    let expires_at: u64 = expires.trim().parse().ok()?;
+    (!token.trim().is_empty() && expires_at > crate::unix_now() + 900).then(|| auth::Account {
+        name: saved.name.clone(),
+        uuid: saved.uuid.clone(),
+        access_token: token.trim().to_owned(),
+        refresh_token: saved.refresh_token.clone(),
+        expires_at,
+    })
+}
+
 fn account_for(settings: &mut Settings, path: &std::path::Path) -> Result<auth::Account, String> {
     for saved in &mut settings.accounts {
         if saved.refresh_token.is_empty()
@@ -69,8 +95,14 @@ fn account_for(settings: &mut Settings, path: &std::path::Path) -> Result<auth::
     if let Some(saved) = settings.active_saved().cloned()
         && !saved.refresh_token.is_empty()
     {
+        // The Minecraft token lives about a day: reuse it instead of signing in at Xbox and
+        // Mojang on every start, which is what ends in "429 too many requests".
+        if let Some(account) = cached_session(&saved) {
+            return Ok(account);
+        }
         let ms = auth::refresh(settings.client_id.trim(), &saved.refresh_token)?;
         let account = auth::minecraft_account(&ms)?;
+        remember_session(&account);
         settings.remember(SavedAccount {
             name: account.name.clone(),
             uuid: account.uuid.clone(),

@@ -301,7 +301,8 @@ impl App {
                     return Err("Cancelled".to_owned());
                 }
                 auth::minecraft_account(&ms)
-            })();
+            })()
+            .inspect(cli::remember_session);
             if epoch.load(Ordering::SeqCst) != mine {
                 return;
             }
@@ -330,8 +331,13 @@ impl App {
             };
             let result = if token.is_empty() {
                 Err(i18n::tr("The saved sign-in could not be read from the keyring. Sign in again."))
+            } else if let Some(mut account) = cli::cached_session(&saved) {
+                account.refresh_token = token;
+                Ok(account)
             } else {
-                auth::refresh(&client_id, &token).and_then(|ms| auth::minecraft_account(&ms))
+                auth::refresh(&client_id, &token)
+                    .and_then(|ms| auth::minecraft_account(&ms))
+                    .inspect(cli::remember_session)
             };
             if epoch.load(Ordering::SeqCst) != mine {
                 return;

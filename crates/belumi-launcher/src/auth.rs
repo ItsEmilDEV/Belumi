@@ -47,10 +47,28 @@ fn agent() -> ureq::Agent {
 
 fn describe(error: ureq::Error) -> (u16, Value) {
     match error {
+        ureq::Error::Status(429, response) => {
+            let wait = response.header("Retry-After").map(str::to_owned);
+            (429, json!({ "retry_after": wait }))
+        }
         ureq::Error::Status(code, response) => {
             (code, response.into_json::<Value>().unwrap_or(Value::Null))
         }
         ureq::Error::Transport(t) => (0, json!({ "transport": t.to_string() })),
+    }
+}
+
+/// What a 429 from Microsoft, Xbox or Mojang means for the player.
+pub fn rate_limited(body: &Value) -> String {
+    let seconds = body["retry_after"].as_str().and_then(|s| s.trim().parse::<u64>().ok());
+    match seconds {
+        Some(s) => format!(
+            "Too many sign-in attempts (429). The servers ask to wait about {} min before the next try.",
+            s.div_ceil(60).max(1)
+        ),
+        None => "Too many sign-in attempts (429). Wait about 10 minutes before the next try; \
+Belumi reuses the saved login meanwhile."
+            .into(),
     }
 }
 
@@ -151,6 +169,8 @@ pub fn refresh(client_id: &str, refresh_token: &str) -> Result<MsTokens, String>
             let (status, body) = describe(e);
             if status == 0 {
                 Err(network_error(&body))
+            } else if status == 429 {
+                Err(rate_limited(&body))
             } else if body["error"] == "invalid_grant" {
                 Err("The saved sign-in is no longer valid. Sign in again.".into())
             } else {
@@ -189,6 +209,7 @@ pub fn minecraft_account(ms: &MsTokens) -> Result<Account, String> {
             match status {
                 0 => network_error(&body),
                 403 => APP_NOT_APPROVED.into(),
+                429 => rate_limited(&body),
                 _ => format!("Minecraft login failed ({status})"),
             }
         })?
@@ -204,7 +225,10 @@ pub fn minecraft_account(ms: &MsTokens) -> Result<Account, String> {
         .get(MC_ENTITLEMENTS_URL)
         .set("Authorization", &bearer)
         .call()
-        .map_err(|e| format!("Could not check ownership ({})", describe(e).0))?
+        .map_err(|e| match describe(e) {
+            (429, body) => rate_limited(&body),
+            (status, _) => format!("Could not check ownership ({status})"),
+        })?
         .into_json::<Value>()
         .map_err(|e| e.to_string())?;
     if !owns_minecraft(&entitlements) {
@@ -219,7 +243,12 @@ pub fn minecraft_account(ms: &MsTokens) -> Result<Account, String> {
         Err(ureq::Error::Status(404, _)) => {
             return Err("Create your Minecraft profile on minecraft.net first.".into());
         }
-        Err(e) => return Err(format!("Could not read the profile ({})", describe(e).0)),
+        Err(e) => {
+            return Err(match describe(e) {
+                (429, body) => rate_limited(&body),
+                (status, _) => format!("Could not read the profile ({status})"),
+            });
+        }
     };
     Ok(Account {
         name: profile["name"]
@@ -245,6 +274,8 @@ fn xbox_token(url: &str, body: Value) -> Result<(String, String), String> {
         let (status, body) = describe(e);
         if status == 0 {
             network_error(&body)
+        } else if status == 429 {
+            rate_limited(&body)
         } else {
             xerr_message(body["XErr"].as_u64())
                 .unwrap_or_else(|| format!("Xbox Live refused ({status})"))
@@ -299,6 +330,12 @@ mod tests {
         ));
         assert!(!owns_minecraft(&json!({"items": []})));
         assert!(!owns_minecraft(&json!({})));
+    }
+
+    #[test]
+    fn a_429_says_how_long_to_wait() {
+        assert!(rate_limited(&json!({ "retry_after": "120" })).contains("2 min"));
+        assert!(rate_limited(&json!({ "retry_after": null })).contains("10 minutes"));
     }
 
     #[test]
