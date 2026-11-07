@@ -1,0 +1,26 @@
+# Maintainer: Belumi <noreply@users.noreply.github.com>
+# Installs the release archive (the launcher and the game). Build with: makepkg -si
+pkgname=belumi-bin
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Belumi: a Minecraft: Java Edition client and launcher written in Rust"
+arch=('x86_64')
+url="https://github.com/ItsEmilDEV/Belumi"
+license=('MIT')
+depends=('alsa-lib' 'opus' 'vulkan-icd-loader' 'systemd-libs')
+provides=('belumi')
+conflicts=('belumi')
+options=('!strip')
+source=("belumi-${pkgver}-linux-x86_64.tar.gz::${url}/releases/download/v${pkgver}/belumi-${pkgver}-linux-x86_64.tar.gz")
+sha256sums=('SKIP') # put the digest from the release's .sha256 file here
+
+package() {
+  cd "belumi-${pkgver}-linux-x86_64"
+  install -Dm755 bin/belumi-launcher "$pkgdir/usr/bin/belumi-launcher"
+  install -Dm755 bin/horizon-client "$pkgdir/usr/bin/horizon-client"
+  install -Dm644 share/applications/belumi-launcher.desktop "$pkgdir/usr/share/applications/belumi-launcher.desktop"
+  install -Dm644 share/applications/belumi.desktop "$pkgdir/usr/share/applications/belumi.desktop"
+  install -Dm644 share/icons/hicolor/512x512/apps/belumi.png "$pkgdir/usr/share/icons/hicolor/512x512/apps/belumi.png"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 README.txt "$pkgdir/usr/share/doc/$pkgname/README.txt"
+}

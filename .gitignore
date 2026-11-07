@@ -9,3 +9,27 @@ command_history.txt
 /tools/.horizon-cache/
 /tools/assets/
 /tools/horizon_official_server.txt
+
+# Files the game and the launcher create next to where they are started
+/saves/
+/replays/
+/downloads/
+/shaderpacks/
+/screenshots/
+/belumi-maps/
+/belumi.toml
+/belumi-modules.toml
+/horizon-extras.txt
+/horizon-graphics.txt
+/horizon-player.txt
+/tools/saves/
+/tools/replays/
+/tools/downloads/
+/tools/shaderpacks/
+/tools/screenshots/
+/tools/belumi-maps/
+/tools/belumi.toml
+/tools/belumi-modules.toml
+/tools/horizon-extras.txt
+/tools/horizon-graphics.txt
+/dist/

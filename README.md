@@ -10,11 +10,35 @@ Belumi is an independent project. It is not made, approved or supported by Mojan
 a trademark of Mojang Studios. Belumi contains no Minecraft files: textures, sounds and data come from your own
 Minecraft installation.
 
+## What you get
+
+- A native client for Minecraft 26.3 that also plays on 26.2 servers through a translation layer
+- A launcher with Microsoft sign-in, a server list, one-click updates and Discord Rich Presence
+- A client screen on **Right Shift**: a HUD builder (keystrokes, CPS, armor, effects with icons, FPS, ping, coordinates, clock,
+  inventory), a crosshair editor, chat tools, toggle sprint and sneak, freelook, shulker previews in tooltips
+- Voice chat that works with Simple Voice Chat servers, in every build
+- Replays with free camera, speed and seek, camera paths and clips
+- Discord Rich Presence that shows what you choose (server, world, time, game mode)
+- WebAssembly plugins for the client and for servers
+
 ## Status
 
-Early development. The client runs on Minecraft 26.3 natively and plays on 26.2 servers through a translation layer,
-offline and with a Microsoft account. There are no releases yet. The launcher's own Microsoft sign-in waits for
-Mojang's approval of its application; until then it can reuse an account from Prism Launcher.
+Early development. The launcher's own Microsoft sign-in waits for Mojang's approval of its application; until then
+it can reuse an account from Prism Launcher, and offline play works (the offline name starts as `Schnitzelblitz`).
+
+## Install
+
+Download the archive or installer of the newest release from the
+[releases page](https://github.com/ItsEmilDEV/Belumi/releases):
+
+| System | File | How |
+|---|---|---|
+| Linux (x86_64) | `belumi-<version>-linux-x86_64.tar.gz` | unpack, run `./install.sh` (user install) or `./install.sh --prefix /usr/local` |
+| Windows 10 and 11 (x64) | `belumi-<version>-windows-x64-setup.exe` | run the installer; the `.zip` is the portable version |
+
+The game needs resources prepared from your own Minecraft installation (they are Mojang's files and never ship with
+Belumi); see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Once installed, the launcher offers new versions itself
+(an **Update now** button, checked by SHA-256).
 
 ## Parts
 
@@ -33,7 +57,7 @@ git clone --recurse-submodules https://github.com/ItsEmilDEV/Belumi.git
 cd Belumi
 cargo test --workspace
 cargo build --release -p belumi-launcher
-cd vendor/horizon && cargo build --profile fast -p horizon-client
+cd vendor/horizon && cargo build --profile fast -p horizon-client --features belumi
 ```
 
 The game needs prepared Minecraft resources from your own installation; see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
@@ -41,7 +65,7 @@ The game needs prepared Minecraft resources from your own installation; see [doc
 ## Documentation
 
 - [Development](docs/DEVELOPMENT.md)
-- [Launcher](docs/launcher.md)
+- [Launcher](docs/launcher.md), [Discord Rich Presence](docs/discord-presence.md)
 - [Minecraft 26.2 vs 26.3 on the wire](docs/wire-differences-26.2.md)
 - [Client features](docs/client-features.md): HUD, zoom, maps, waypoints, freecam, inspector, effects
 - [Client plugins](docs/client-plugins.md), [Voice chat](docs/voice-chat.md), [Screen effects](docs/effects.md)

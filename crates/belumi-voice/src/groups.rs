@@ -347,13 +347,13 @@ mod tests {
 
     #[test]
     fn the_older_two_bool_format_a_real_server_sent_is_read() {
-        let state = hex("0000141347b887164752b1b05a2e4f1d76a60a4d63436c61756465414900");
+        let state = hex("000000112233445566778899aabbccddeeff0a4d634578616d706c653100");
         let (Incoming::State(s), legacy) = parse_detect(STATE, &state).unwrap() else {
             panic!()
         };
         assert!(legacy);
-        assert_eq!(s.name, "McClaudeAI");
-        assert_eq!(s.uuid, 0x141347b8_8716_4752_b1b0_5a2e4f1d76a6);
+        assert_eq!(s.name, "McExample1");
+        assert_eq!(s.uuid, 0x00112233_4455_6677_8899_aabbccddeeff);
         assert!(!s.disabled && !s.disconnected && s.group.is_none());
         let mut many = 2i32.to_be_bytes().to_vec();
         many.extend_from_slice(&hex("01004e3a6b1400fa4690b52d5aaac7812e0609466c65726f32343734"));

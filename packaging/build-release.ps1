@@ -9,6 +9,8 @@ Set-Location $root
 if (-not $Version) {
     $Version = (Select-String -Path "Cargo.toml" -Pattern '^version = "(.*)"' | Select-Object -First 1).Matches.Groups[1].Value
 }
+# The programs carry the C runtime with them, so a clean Windows needs no Visual C++ redistributable.
+$env:RUSTFLAGS = "$env:RUSTFLAGS -C target-feature=+crt-static".Trim()
 $features = if ($null -ne $env:BELUMI_FEATURES) { $env:BELUMI_FEATURES } else { "belumi" }
 $name = "belumi-$Version-windows-x64"
 $stage = Join-Path "dist" $name

@@ -36,6 +36,21 @@ cargo run --release -p belumi-launcher   # or: cargo run -p belumi-launcher
 - Game log -> Run diagnose (or `belumi-launcher --diagnose`) collects a support report: see [diagnose.md](diagnose.md).
 - The launcher speaks English and German (Settings, or by the system language).
 
+## Updates
+
+At start the launcher asks GitHub for a newer release (Settings, Updates: "Check for updates at start"; "Check now" asks
+again). If there is one you get a desktop notification (Linux), the status line says so and the Play page shows a banner with
+**Update now**. The button downloads the archive of your system, checks its SHA-256, replaces `belumi-launcher` and
+`horizon-client` next to the running launcher and offers **Restart now**. A launcher installed system-wide (`/usr`, a package)
+cannot change itself: update it with the package manager or the installer. Details: [releases.md](releases.md).
+
+## Discord
+
+Settings, Discord: "Show Belumi on my Discord profile" (launcher and game; the launcher starts the game with
+`BELUMI_NO_DISCORD=1` when it is off) and "Show my account name in the launcher". The game's own options (server address,
+world name, time, game mode) are in the game under Right Shift, Modules, Discord presence. See
+[discord-presence.md](discord-presence.md).
+
 ## Looks
 
 Settings -> Look switches between three styles: Modern (dark, calm), Modern Glass (gradient with translucent panels) and

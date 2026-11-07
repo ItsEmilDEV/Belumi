@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Launcher: update button (download, SHA-256 check, replace, restart), a notification when an update exists, "Check now",
+  Discord Rich Presence of the launcher, a Minecraft session cache against login rate limits (429)
+- Client screen on Right Shift: HUD builder with undo and per-module backgrounds, new HUD modules (FPS, ping, coordinates),
+  effect icons, crosshair presets and colour steps, chat tools, shulker previews in tooltips
+- Replays with camera paths (P, O, Backspace)
+- Discord Rich Presence with options (server address, world name, dimension, game mode icon, time, player count)
+- Voice chat is part of every Belumi build and on by default (push to talk)
+- Linux `.deb` package and a Windows installer in the release workflow
 - Client: Belumi Settings page with `belumi.toml`; HUD overlay, zoom, minimap, persistent world map, waypoints, freecam,
   packet inspector and built-in screen effects ([docs/client-features.md](docs/client-features.md))
 - Client plugins: WebAssembly host, API, SDK and an example ([docs/client-plugins.md](docs/client-plugins.md))

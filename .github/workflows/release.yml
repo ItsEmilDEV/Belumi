@@ -37,7 +37,7 @@ jobs:
         run: |
           flags=""
           case "$GITHUB_REF_NAME" in *-*) flags="--prerelease" ;; esac
-          gh release create "$GITHUB_REF_NAME" $flags --generate-notes dist/*.tar.gz dist/*.sha256
+          gh release create "$GITHUB_REF_NAME" $flags --generate-notes dist/*.tar.gz dist/*.deb dist/*.sha256
 
   windows:
     name: Windows zip and installer
