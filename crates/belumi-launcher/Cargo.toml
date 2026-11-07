@@ -8,6 +8,7 @@ description = "Belumi launcher: Microsoft sign-in and starting the game client (
 
 [dependencies]
 belumi-core = { path = "../belumi-core" }
+belumi-presence = { path = "../belumi-presence" }
 eframe = { version = "0.37", default-features = false, features = ["glow", "default_fonts", "wayland", "x11", "clipboard", "links"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

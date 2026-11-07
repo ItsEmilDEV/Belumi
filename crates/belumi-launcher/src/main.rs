@@ -88,6 +88,9 @@ fn unix_now() -> u64 {
 
 struct App {
     settings: Settings,
+    /// Discord Rich Presence of the launcher; `None` when Discord is switched off for this run.
+    presence: Option<belumi_presence::Presence>,
+    opened_at: u64,
     settings_path: PathBuf,
     log_path: PathBuf,
     account: Option<Account>,
@@ -131,6 +134,14 @@ struct App {
     fields_typed: bool,
 }
 
+impl Drop for App {
+    fn drop(&mut self) {
+        if let Some(presence) = &self.presence {
+            presence.stop();
+        }
+    }
+}
+
 impl App {
     fn new() -> Self {
         let paths = BelumiPaths::new();
@@ -167,6 +178,12 @@ impl App {
             status: "Not signed in.".into(),
             busy: false,
             playing: false,
+            presence: if belumi_presence::disabled_by_env() {
+                None
+            } else {
+                belumi_presence::app_id().and_then(|id| belumi_presence::Presence::start(&id))
+            },
+            opened_at: unix_now(),
             cancel: Arc::new(AtomicBool::new(false)),
             tab: ui::Tab::Play,
             styled: false,
@@ -520,6 +537,27 @@ impl App {
             }
             Err(e) => self.status = e,
         }
+    }
+
+    /// What the launcher tells Discord: nothing while the game runs (the game says it itself).
+    fn update_presence(&self) {
+        let Some(presence) = &self.presence else {
+            return;
+        };
+        if !self.settings.discord_presence || self.playing || self.diagnosing {
+            presence.set(None);
+            return;
+        }
+        let state = match (&self.account, self.settings.discord_show_account) {
+            (Some(account), true) => format!("Signed in as {}", account.name),
+            _ => "Getting ready to play".to_owned(),
+        };
+        presence.set(Some(serde_json::json!({
+            "details": "In the Belumi launcher",
+            "state": state,
+            "assets": {"large_image": "belumi", "large_text": "Belumi"},
+            "timestamps": {"start": self.opened_at},
+        })));
     }
 
     fn start_diagnose(&mut self) {

@@ -1,6 +1,6 @@
 # Builds the Windows release: dist\belumi-<version>-windows-x64.zip (portable) and, when Inno Setup is installed,
 # dist\belumi-<version>-windows-x64-setup.exe. Usage: pwsh packaging\build-release.ps1 [version]
-# Env:   BELUMI_FEATURES  client cargo features (default: belumi,belumi-plugins)
+# Env:   BELUMI_FEATURES  client cargo features (default: belumi, which brings plugins and voice chat along)
 param([string]$Version = "")
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -9,7 +9,7 @@ Set-Location $root
 if (-not $Version) {
     $Version = (Select-String -Path "Cargo.toml" -Pattern '^version = "(.*)"' | Select-Object -First 1).Matches.Groups[1].Value
 }
-$features = if ($null -ne $env:BELUMI_FEATURES) { $env:BELUMI_FEATURES } else { "belumi,belumi-plugins" }
+$features = if ($null -ne $env:BELUMI_FEATURES) { $env:BELUMI_FEATURES } else { "belumi" }
 $name = "belumi-$Version-windows-x64"
 $stage = Join-Path "dist" $name
 

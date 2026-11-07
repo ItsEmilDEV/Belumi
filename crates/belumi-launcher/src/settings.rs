@@ -47,6 +47,10 @@ pub struct Settings {
     #[serde(rename = "account", skip_serializing_if = "Option::is_none")]
     legacy_account: Option<SavedAccount>,
     pub check_updates: bool,
+    /// Discord Rich Presence of the launcher and, through `BELUMI_NO_DISCORD`, of the game.
+    pub discord_presence: bool,
+    /// The launcher's presence names the signed-in account.
+    pub discord_show_account: bool,
     pub update_channel: String,
     pub style: String,
     pub language: String,
@@ -106,6 +110,8 @@ impl Default for Settings {
             active_account: String::new(),
             legacy_account: None,
             check_updates: true,
+            discord_presence: true,
+            discord_show_account: false,
             update_channel: "stable".into(),
             style: "modern".into(),
             language: "auto".into(),

@@ -93,6 +93,9 @@ pub fn launch_with(
     command.args(arguments(settings, account.is_some(), target));
     command.args(extra_args);
     command.envs(extra_env.iter().copied());
+    if !settings.discord_presence {
+        command.env("BELUMI_NO_DISCORD", "1");
+    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

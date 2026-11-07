@@ -217,7 +217,7 @@ The Horizon side is `vendor/horizon/crates/horizon-client/src/belumi_hooks.rs`, 
 (a path dependency on the crates above, so `vendor/horizon` builds only inside this repository).
 
 ```sh
-cd vendor/horizon && cargo build --profile fast --no-default-features --features belumi -p horizon-client
+cd vendor/horizon && cargo build --profile fast -p horizon-client --features belumi
 cargo build -p belumi-server && tools/build-example-plugin.sh <server-dir>/plugins   # needs: rustup target add wasm32-unknown-unknown
 target/debug/belumi-server --dir <server-dir> --client vendor/horizon/target/fast/horizon-client \
   --resources vendor/horizon/.local/horizon-client/26.3      # settings in <server-dir>/belumi.toml; stop with `stop` on stdin
@@ -251,7 +251,7 @@ The launcher and the client are written to run on Windows 10 and 11 (x64). Build
 
 ```powershell
 cargo build --release -p belumi-launcher
-cd vendor\horizon; cargo build --release -p horizon-client --features belumi,belumi-plugins
+cd vendor\horizon; cargo build --release -p horizon-client --features belumi
 ```
 
 `packaging\build-release.ps1` builds both, a portable zip and, with Inno Setup 6 installed, the installer
@@ -262,4 +262,4 @@ What differs from Linux: the Microsoft sign-in is kept in the Windows Credential
 in an owner-only file under `%APPDATA%\Belumi`), the browser opens through `rundll32`, the game folder defaults to
 the launcher's working directory, and the Vulkan check is skipped (the game falls back to DirectX 12). Voice chat
 (`belumi-voice`) builds the Opus library from source with CMake, which GitHub's Windows runners and a Visual Studio
-install provide; if that fails on your machine, build the client with `--no-default-features --features audio,controllers,belumi,belumi-plugins`.
+install provide. Voice chat is part of every Belumi build, so CMake is required.

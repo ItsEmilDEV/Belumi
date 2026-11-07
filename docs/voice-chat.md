@@ -22,13 +22,14 @@ the steps always go to the game log.
 
 ## Turn it on
 
-1. Build the client with `--features belumi-voice` (in `vendor/horizon`). It needs `libopus` (`pacman -S opus`,
-   `apt install libopus-dev`) and the ALSA headers on Linux.
-2. Options > Horizon Settings > Belumi Settings > Voice chat > **Voice chat: On**.
+1. Every Belumi build has voice chat (`belumi` and the default features include `belumi-voice` and the sound output). It needs
+   `libopus` (`pacman -S opus`, `apt install libopus-dev`) and the ALSA headers on Linux.
+2. Voice chat is on from the start (Options > Horizon Settings > Belumi Settings > Voice chat); the microphone is push to talk (V)
+   until you change it.
 3. Join a server with the voice mod. The client sends `voicechat:request_secret`; the server answers with
    `voicechat:secret`, and the client connects to the server's UDP voice port. The chat says `Voice chat connected.`
 
-A build without the feature says so in chat once when the switch is on.
+A build made with `--no-default-features` and without `belumi` (the dedicated server build) has no voice chat and says so in chat once when the switch is on.
 
 ## Controls and settings
 

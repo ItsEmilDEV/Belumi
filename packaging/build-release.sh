@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds the Linux release archive: dist/belumi-<version>-linux-<arch>.tar.gz and its SHA256SUMS.
 # Usage: packaging/build-release.sh [version]   (default: the launcher's Cargo version)
-# Env:   BELUMI_FEATURES   client cargo features (default: belumi,belumi-plugins; add belumi-voice for voice chat)
+# Env:   BELUMI_FEATURES   client cargo features (default: belumi, which brings plugins and voice chat along)
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -9,7 +9,7 @@ cd "$root"
 
 version="${1:-$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)}"
 arch="$(uname -m)"
-features="${BELUMI_FEATURES-belumi,belumi-plugins}"
+features="${BELUMI_FEATURES-belumi}"
 name="belumi-${version}-linux-${arch}"
 stage="dist/${name}"
 

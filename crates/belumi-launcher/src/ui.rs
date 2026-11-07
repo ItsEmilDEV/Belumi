@@ -764,6 +764,19 @@ impl App {
             }
             ui.label(muted(tr("Drop a shader pack (.zip) here to add it")));
         });
+        section(ui, &tr("Discord"));
+        card(ui, |ui| {
+            changed |= ui
+                .checkbox(&mut self.settings.discord_presence, tr("Show Belumi on my Discord profile"))
+                .on_hover_text(tr("Applies to the launcher and to the game."))
+                .changed();
+            changed |= ui
+                .checkbox(&mut self.settings.discord_show_account, tr("Show my account name in the launcher"))
+                .changed();
+            ui.label(muted(tr(
+                "What the game shows (server, world, time) is set in the game: Right Shift, Modules, Discord presence.",
+            )));
+        });
         section(ui, &tr("Updates"));
         card(ui, |ui| {
             ui.horizontal(|ui| {
@@ -824,6 +837,7 @@ impl eframe::App for App {
             apply_theme(ui.ctx());
             self.styled = true;
         }
+        self.update_presence();
         if self.checks.is_empty() {
             self.checks = crate::check::run(&self.settings);
         }

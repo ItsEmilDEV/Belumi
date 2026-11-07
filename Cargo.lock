@@ -260,6 +260,7 @@ name = "belumi-launcher"
 version = "0.1.0"
 dependencies = [
  "belumi-core",
+ "belumi-presence",
  "eframe",
  "keyring",
  "png",
@@ -285,6 +286,14 @@ version = "0.1.0"
 dependencies = [
  "belumi-plugin-api",
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "belumi-presence"
+version = "0.1.0"
+dependencies = [
+ "log",
  "serde_json",
 ]
 

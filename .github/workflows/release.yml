@@ -28,7 +28,7 @@ jobs:
 
       - name: Build the archive
         env:
-          BELUMI_FEATURES: belumi,belumi-plugins
+          BELUMI_FEATURES: belumi
         run: packaging/build-release.sh "${GITHUB_REF_NAME#v}"
 
       - name: Publish
@@ -55,7 +55,7 @@ jobs:
       - name: Build the zip and the installer
         shell: pwsh
         env:
-          BELUMI_FEATURES: belumi,belumi-plugins
+          BELUMI_FEATURES: belumi
         run: |
           $version = "${{ github.ref_name }}".TrimStart("v")
           packaging/build-release.ps1 $version
