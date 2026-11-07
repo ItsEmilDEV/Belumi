@@ -26,6 +26,15 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      # Compiled dependencies come from the cache that cache-warmup.yml keeps on main (a tag run cannot share its own).
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: release-linux
+          workspaces: |
+            . -> target
+            vendor/horizon -> target
+          save-if: false
+
       - name: Build the archive and the packages
         env:
           BELUMI_FEATURES: belumi
@@ -51,6 +60,14 @@ jobs:
           submodules: recursive
 
       - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: release-windows
+          workspaces: |
+            . -> target
+            vendor/horizon -> target
+          save-if: false
 
       - name: Inno Setup for the installer
         shell: pwsh

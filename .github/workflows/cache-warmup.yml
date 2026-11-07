@@ -1,0 +1,72 @@
+name: Cache warm-up
+
+# A release run (a tag) can read the build cache of main but cannot share one it makes itself. This workflow builds the release
+# files on main, so the next release starts with compiled dependencies. It runs when the dependencies change, once a week (GitHub
+# drops caches that nobody has used for a week) and by hand. Nothing it builds is published.
+on:
+  push:
+    branches: [main]
+    paths: ["Cargo.lock", "Cargo.toml", "vendor/horizon/Cargo.lock", "packaging/build-release.*", ".github/workflows/cache-warmup.yml"]
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libxkbcommon-x11-dev libwayland-dev \
+            libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev libudev-dev libopus-dev cmake pkg-config rpm curl
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: release-linux
+          workspaces: |
+            . -> target
+            vendor/horizon -> target
+
+      - name: Build as a release does
+        env:
+          BELUMI_FEATURES: belumi
+        run: packaging/build-release.sh 0.0.0
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: release-windows
+          workspaces: |
+            . -> target
+            vendor/horizon -> target
+
+      - name: Inno Setup for the installer
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue) -and -not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+
+      - name: Build as a release does
+        shell: pwsh
+        env:
+          BELUMI_FEATURES: belumi
+        run: packaging/build-release.ps1 0.0.0
