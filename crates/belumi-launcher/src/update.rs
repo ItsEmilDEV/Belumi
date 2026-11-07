@@ -205,6 +205,9 @@ pub fn install(release: &Release, progress: &Progress) -> Result<(), String> {
         .iter()
         .find(|a| a.name == sum_name && a.url.starts_with(DOWNLOAD_PREFIX))
         .ok_or("This release has no checksum file, so Belumi will not install it.")?;
+    if std::env::var_os("APPIMAGE").is_some() {
+        return Err("This is the AppImage: download the new AppImage from the release page and replace this file.".into());
+    }
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let dir = exe.parent().ok_or("Cannot find the launcher's folder.")?.to_path_buf();
     ensure_writable(&dir)?;

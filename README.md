@@ -33,12 +33,16 @@ Download the archive or installer of the newest release from the
 
 | System | File | How |
 |---|---|---|
-| Linux (x86_64) | `belumi-<version>-linux-x86_64.tar.gz` | unpack, run `./install.sh` (user install) or `./install.sh --prefix /usr/local` |
+| Any Linux (x86_64) | `belumi-<version>-linux-x86_64.tar.gz` | unpack, run `./install.sh` (user install) or `./install.sh --prefix /usr/local` |
+| Any Linux (x86_64) | `belumi-<version>-x86_64.AppImage` | `chmod +x` it and run it; libopus is inside |
+| Debian, Ubuntu, Mint | `belumi_<version>_amd64.deb` | `sudo apt install ./belumi_<version>_amd64.deb` |
+| Fedora, openSUSE | `belumi-<version>-1.x86_64.rpm` | `sudo dnf install ./belumi-<version>-1.x86_64.rpm` |
+| Arch, CachyOS | `packaging/PKGBUILD` | `makepkg -si` in that folder |
 | Windows 10 and 11 (x64) | `belumi-<version>-windows-x64-setup.exe` | run the installer; the `.zip` is the portable version |
 
 The game needs resources prepared from your own Minecraft installation (they are Mojang's files and never ship with
 Belumi); see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Once installed, the launcher offers new versions itself
-(an **Update now** button, checked by SHA-256).
+(an **Update now** button, checked by SHA-256; for the AppImage and the packages use the new file or your package manager).
 
 ## Parts
 

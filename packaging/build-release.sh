@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the Linux release archive dist/belumi-<version>-linux-<arch>.tar.gz and a .deb, each with its .sha256 file.
+# Builds the Linux release files in dist/: the .tar.gz (any distro), .deb, .rpm and AppImage, each with its .sha256 file.
 # Usage: packaging/build-release.sh [version]   (default: the launcher's Cargo version)
 # Env:   BELUMI_FEATURES   client cargo features (default: belumi, which brings plugins and voice chat along)
 set -euo pipefail
@@ -30,7 +30,13 @@ install -m644 LICENSE "$stage/LICENSE"
 install -m644 packaging/README-release.txt "$stage/README.txt"
 
 ( cd dist && tar --owner=0 --group=0 -czf "${name}.tar.gz" "$name" && sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256" )
-# A .deb for Debian and Ubuntu next to the archive (the version of a .deb has no "v" or dash tricks).
-packaging/build-deb.sh "$stage" "$version" dist
+# The other formats from the same staged folder: .deb (Debian, Ubuntu), .rpm (Fedora, openSUSE), AppImage (any distro).
+# On a developer's machine a missing tool only skips its format; in CI (CI is set) it fails the build.
+for format in deb rpm appimage; do
+  packaging/build-$format.sh "$stage" "$version" dist || {
+    [ -z "${CI:-}" ] || exit 1
+    echo "skipped the $format package"
+  }
+done
 echo "dist/${name}.tar.gz"
 cat "dist/${name}.tar.gz.sha256"

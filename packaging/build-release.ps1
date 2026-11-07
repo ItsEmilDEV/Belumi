@@ -46,6 +46,8 @@ if ($iscc) {
     if ($LASTEXITCODE -ne 0) { throw "installer build failed" }
     (Get-FileHash "dist/$name-setup.exe" -Algorithm SHA256).Hash.ToLower() + "  $name-setup.exe" | Set-Content "dist/$name-setup.exe.sha256"
     Write-Host "dist/$name-setup.exe"
+} elseif ($env:CI) {
+    throw "Inno Setup not found: the installer cannot be built"
 } else {
     Write-Host "Inno Setup not found: only the portable zip was built."
 }

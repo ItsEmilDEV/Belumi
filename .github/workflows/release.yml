@@ -22,7 +22,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libxkbcommon-x11-dev libwayland-dev \
-            libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev libudev-dev libopus-dev cmake pkg-config
+            libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev libudev-dev libopus-dev cmake pkg-config rpm curl
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -37,7 +37,10 @@ jobs:
         run: |
           flags=""
           case "$GITHUB_REF_NAME" in *-*) flags="--prerelease" ;; esac
-          gh release create "$GITHUB_REF_NAME" $flags --generate-notes dist/*.tar.gz dist/*.deb dist/*.sha256
+          notes=(--generate-notes)
+          [ -f "docs/release-notes/${GITHUB_REF_NAME}.md" ] && notes=(--notes-file "docs/release-notes/${GITHUB_REF_NAME}.md")
+          gh release create "$GITHUB_REF_NAME" $flags --title "Belumi ${GITHUB_REF_NAME#v}" "${notes[@]}" \
+            dist/*.tar.gz dist/*.deb dist/*.rpm dist/*.AppImage dist/*.sha256
 
   windows:
     name: Windows zip and installer
@@ -51,6 +54,13 @@ jobs:
           submodules: recursive
 
       - uses: dtolnay/rust-toolchain@stable
+
+      - name: Inno Setup for the installer
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue) -and -not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
 
       - name: Build the zip and the installer
         shell: pwsh
