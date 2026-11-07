@@ -151,9 +151,30 @@ impl App {
             card(ui, |ui| {
                 ui.horizontal(|ui| {
                     crate::icons::icon(ui, Icon::Download, 18.0, t().accent);
-                    ui.label(RichText::new(trf("Update available: {}", &[&release.tag])).strong());
-                    ui.hyperlink_to(tr("Open the release page"), &release.url);
+                    if let Some(tag) = self.update_done.clone() {
+                        ui.label(RichText::new(trf("Updated to {}", &[&tag])).strong());
+                        if action(ui, Kind::Primary, None, &tr("Restart now"), true, vec2(0.0, 32.0)).clicked() {
+                            crate::update::restart();
+                        }
+                    } else if self.updating {
+                        ui.label(RichText::new(trf("Downloading {}...", &[&release.tag])).strong());
+                        let bar = match self.update_progress.percent() {
+                            Some(p) => egui::ProgressBar::new(p as f32 / 100.0).text(format!("{p} %")),
+                            None => egui::ProgressBar::new(0.0).animate(true),
+                        };
+                        ui.add(bar.desired_width(180.0));
+                        ui.ctx().request_repaint_after(std::time::Duration::from_millis(100));
+                    } else {
+                        ui.label(RichText::new(trf("Update available: {}", &[&release.tag])).strong());
+                        if action(ui, Kind::Primary, Some(Icon::Download), &tr("Update now"), true, vec2(0.0, 32.0)).clicked() {
+                            self.start_update();
+                        }
+                        ui.hyperlink_to(tr("Open the release page"), &release.url);
+                    }
                 });
+                if let Some(error) = &self.update_error {
+                    ui.label(RichText::new(error.clone()).color(t().danger));
+                }
             });
         }
         if let Some(report) = self.crash.clone() {
@@ -784,6 +805,13 @@ impl App {
                     .checkbox(&mut self.settings.check_updates, tr("Check for updates at start"))
                     .on_hover_text(tr("Asks GitHub's public release list; nothing is installed automatically."))
                     .changed();
+                if action(ui, Kind::Secondary, None, &tr("Check now"), !self.updating, vec2(0.0, 28.0)).clicked() {
+                    self.update_announced = false;
+                    self.update_manual = true;
+                    self.update_done = None;
+                    self.check_for_update(true);
+                    self.status = tr("Looking for updates...");
+                }
                 let channel = crate::update::Channel::parse(&self.settings.update_channel);
                 egui::ComboBox::from_id_salt("channel").selected_text(channel.name()).show_ui(ui, |ui| {
                     for c in [crate::update::Channel::Stable, crate::update::Channel::Nightly] {

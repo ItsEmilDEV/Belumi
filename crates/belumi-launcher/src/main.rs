@@ -62,6 +62,7 @@ enum Event {
     Probed(String, Option<status::ServerStatus>),
     Diagnosed(Result<std::path::PathBuf, String>),
     Update(Option<update::Release>),
+    Updated(Result<(), String>),
     Head(String, Option<Vec<u8>>),
 }
 
@@ -115,6 +116,16 @@ struct App {
     epoch: Arc<std::sync::atomic::AtomicU64>,
     rx: Receiver<Event>,
     update: Option<update::Release>,
+    /// The update is being downloaded and put in place.
+    updating: bool,
+    update_progress: Arc<update::Progress>,
+    /// The update is in place; the launcher has to start again to use it.
+    update_done: Option<String>,
+    update_error: Option<String>,
+    /// The start-up check found an update the player has not been told about yet.
+    update_announced: bool,
+    /// The player pressed "Check now" and waits for an answer.
+    update_manual: bool,
     shots: Option<ui::Shots>,
     heads_dir: PathBuf,
     head_pixels: std::collections::HashMap<String, Vec<u8>>,
@@ -195,6 +206,12 @@ impl App {
             epoch: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             rx,
             update: None,
+            updating: false,
+            update_progress: Arc::new(update::Progress::default()),
+            update_done: None,
+            update_error: None,
+            update_announced: false,
+            update_manual: false,
             shots: ui::Shots::from_env(),
             heads_dir: paths.config_dir().join("heads"),
             head_pixels: Default::default(),
@@ -213,7 +230,8 @@ impl App {
             diagnosing: false,
             fields_typed: false,
         };
-        app.check_for_update();
+        update::clean_up_old();
+        app.check_for_update(false);
         if app.settings.active_saved().is_some() && !app.settings.client_id.trim().is_empty() {
             app.renew();
         } else if app.settings.use_prism {
@@ -222,8 +240,9 @@ impl App {
         app
     }
 
-    fn check_for_update(&mut self) {
-        if !self.settings.check_updates {
+    /// Asks GitHub for a newer release; `forced` also when the player switched the start-up check off.
+    fn check_for_update(&mut self, forced: bool) {
+        if !self.settings.check_updates && !forced {
             return;
         }
         let channel = update::Channel::parse(&self.settings.update_channel);
@@ -231,6 +250,26 @@ impl App {
         std::thread::spawn(move || {
             let found = update::check(channel, env!("CARGO_PKG_VERSION")).unwrap_or(None);
             let _ = tx.send(Event::Update(found));
+        });
+    }
+
+    /// The update button: downloads the release, checks it and puts it next to the running launcher.
+    fn start_update(&mut self) {
+        let Some(release) = self.update.clone() else {
+            return;
+        };
+        if self.updating {
+            return;
+        }
+        self.updating = true;
+        self.update_error = None;
+        self.update_progress = Arc::new(update::Progress::default());
+        self.status = i18n::trf("Downloading {}...", &[&release.tag]);
+        let (tx, progress) = (self.tx.clone(), self.update_progress.clone());
+        std::thread::spawn(move || {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| update::install(&release, &progress)))
+                .unwrap_or_else(|_| Err("Something went wrong while updating.".to_owned()));
+            let _ = tx.send(Event::Updated(result));
         });
     }
 
@@ -662,7 +701,31 @@ impl App {
                     }
                 }
                 Event::Started => {}
-                Event::Update(release) => self.update = release,
+                Event::Update(release) => {
+                    if std::mem::take(&mut self.update_manual) && release.is_none() {
+                        self.status = i18n::tr("Belumi is up to date.");
+                    }
+                    if let (Some(found), false) = (&release, self.update_announced) {
+                        self.update_announced = true;
+                        os::notify(&i18n::tr("Belumi update available"), &i18n::trf("Version {} is ready: open the launcher to install it.", &[&found.tag]));
+                        self.status = i18n::trf("Update available: {}", &[&found.tag]);
+                    }
+                    self.update = release;
+                }
+                Event::Updated(result) => {
+                    self.updating = false;
+                    match result {
+                        Ok(()) => {
+                            let tag = self.update.as_ref().map(|r| r.tag.clone()).unwrap_or_default();
+                            self.status = i18n::trf("Updated to {}. Restart to use it.", &[&tag]);
+                            self.update_done = Some(tag);
+                        }
+                        Err(e) => {
+                            self.status = e.clone();
+                            self.update_error = Some(e);
+                        }
+                    }
+                }
                 Event::Exited(text, code) => {
                     self.playing = false;
                     self.status = text;

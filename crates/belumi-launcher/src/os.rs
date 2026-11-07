@@ -13,6 +13,13 @@ pub fn open(path: &Path) {
     let _ = Command::new(program).arg(path).spawn();
 }
 
+/// A desktop notification, where the system has an easy way to show one (best effort, silent otherwise).
+pub fn notify(title: &str, body: &str) {
+    if cfg!(target_os = "linux") {
+        let _ = Command::new("notify-send").args(["--app-name=Belumi", "--icon=belumi", title, body]).spawn();
+    }
+}
+
 /// Open a web address in the default browser.
 pub fn open_url(url: &str) {
     let _ = if cfg!(windows) {
