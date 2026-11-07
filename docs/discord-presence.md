@@ -15,7 +15,7 @@ application's ID.
 
 1. Create an application named **Belumi**.
 2. Under Rich Presence, Art Assets, upload the logo with the key `belumi`.
-3. Copy the Application ID and set `BELUMI_DISCORD_APP_ID` in
+3. The Application ID is set as `BELUMI_DISCORD_APP_ID` in
    `vendor/horizon/crates/horizon-client/src/discord_presence.rs` (or in the environment for a test).
 
 While the ID is empty, the game starts no presence at all.
