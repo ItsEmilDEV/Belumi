@@ -58,6 +58,11 @@ F10 saves a clip of the last 30 seconds (the length is set on the page), F6 a bo
 page lists recordings and clips; Play opens one with a free camera. While it plays: Space pauses, `[` and `]` change the
 speed (0.25x to 16x), the arrows jump 5 s (Shift: 30 s), Home restarts, V switches between the free camera and the
 player's view, and Right Shift opens the controls with a clickable timeline. Jumping back restarts the session at that time.
+**Camera paths**: with the free camera on, P sets a camera point where the camera is at that moment of the replay (yellow
+marks on the timeline; a point within a quarter second replaces the old one), O makes the camera follow a smooth curve through
+the points as the replay plays (a second O gives the camera back), Backspace clears the points. Before the first point and after
+the last the camera stands still. The points last until the replay is closed.
+
 The oldest recordings are deleted past the limit (`keep`, 20).
 
 ## Builds and features
