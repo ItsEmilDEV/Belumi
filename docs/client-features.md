@@ -26,7 +26,7 @@ extras) are on the same page as quick toggles.
 
 Right Shift (changeable in `belumi-modules.toml`, `menu_key`) opens the client screen. It starts in the **HUD builder**: every HUD
 module can be dragged where you want it, with magnets to the screen's edges, centre lines and the other modules (hold Shift to
-switch them off), the wheel resizes the chosen module, the arrows nudge it. The bar at the bottom switches modules on and off;
+switch them off), the wheel resizes the chosen module, the arrows nudge it, Ctrl+Z takes the last change back. The bar at the bottom switches modules on and off;
 **Starter** turns on a first set. The layout is saved in `belumi-modules.toml` and survives other window sizes.
 
 | HUD module | What it shows |
@@ -34,7 +34,7 @@ switch them off), the wheel resizes the chosen module, the arrows nudge it. The 
 | Keystrokes | WASD, jump and the mouse buttons as you press them, with the clicks per second on the buttons (keys follow your bindings) |
 | CPS | Clicks per second of both mouse buttons, green from 12, yellow from 7 |
 | Armor and items | Armor, main hand and off hand with the durability left, coloured and flashing when it is nearly gone (break warning) |
-| Effects | Active effects with level and time left, shortest first; yellow under 30 s, blinking red under 10 s |
+| Effects | Active effects with their icon, level and time left, shortest first; yellow under 30 s, blinking red under 10 s; icons and beacon effects can be switched off |
 | Clock | The time, with or without seconds |
 | Recording | A blinking REC light with the time of the running recording |
 | Inventory | Your 27 storage slots as a small grid |
@@ -46,7 +46,7 @@ Keystrokes light up with a short fade. Every module except armor and inventory h
 builder (0 % leaves only the text).
 
 The **Modules** button leads to the modules without a place on the HUD: toggle sprint and sneak, freelook (hold Left Alt: the
-camera looks around while the player keeps his direction), crosshair editor (presets, shape, colour, size, thickness, gap, outline,
+camera looks around while the player keeps his direction), crosshair editor (presets, shape, colour with red, green and blue steps, size, thickness, gap, outline,
 dot, spread while moving), item tooltips with ids and durability, break warning, chat tools, auto-reconnect, fullbright, mouse
 tweaks, sort buttons, own name tag, and the replays.
 
