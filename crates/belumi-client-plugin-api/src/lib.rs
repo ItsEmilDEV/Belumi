@@ -4,6 +4,9 @@ pub const ABI_VERSION: u32 = 1;
 pub const MAX_HUD_LINES: usize = 16;
 pub const MAX_HUD_CHARS: usize = 120;
 pub const MAX_CHAT_CHARS: usize = 256;
+pub const MAX_SCREEN_ROWS: usize = 24;
+pub const MAX_SCREEN_TEXT: usize = 60;
+pub const MAX_SCREEN_ID: usize = 32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -14,6 +17,7 @@ pub enum EventKind {
     Command,
     Join,
     Leave,
+    Screen,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -25,6 +29,8 @@ pub enum Event {
     Command { name: String, args: String },
     Join { address: String },
     Leave,
+    /// A button of the plugin's own screen was pressed, or a toggle switched (`value` is its new state).
+    Screen { id: String, value: bool },
 }
 
 impl Event {
@@ -36,6 +42,7 @@ impl Event {
             Event::Command { .. } => EventKind::Command,
             Event::Join { .. } => EventKind::Join,
             Event::Leave => EventKind::Leave,
+            Event::Screen { .. } => EventKind::Screen,
         }
     }
 }
@@ -51,6 +58,53 @@ pub enum EventResult {
 pub enum Permission {
     Chat,
     Hud,
+    Screen,
+}
+
+/// One row of a plugin's screen.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ScreenRow {
+    Label { text: String },
+    Button { id: String, text: String },
+    Toggle { id: String, text: String, #[serde(default)] on: bool },
+}
+
+/// A screen a plugin shows: a title and rows from top to bottom, set as JSON with `screen_set`.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ScreenSpec {
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub rows: Vec<ScreenRow>,
+}
+
+impl ScreenSpec {
+    /// Reads and limits a screen: at most `MAX_SCREEN_ROWS` rows, short texts and ids, no row without an id.
+    pub fn parse(json: &str) -> Option<Self> {
+        let mut spec: ScreenSpec = serde_json::from_str(json).ok()?;
+        let cut = |s: &mut String, max: usize| {
+            if s.chars().count() > max {
+                *s = s.chars().take(max).collect();
+            }
+        };
+        cut(&mut spec.title, MAX_SCREEN_TEXT);
+        spec.rows.truncate(MAX_SCREEN_ROWS);
+        for row in &mut spec.rows {
+            match row {
+                ScreenRow::Label { text } => cut(text, MAX_SCREEN_TEXT),
+                ScreenRow::Button { id, text } | ScreenRow::Toggle { id, text, .. } => {
+                    cut(text, MAX_SCREEN_TEXT);
+                    cut(id, MAX_SCREEN_ID);
+                }
+            }
+        }
+        let ids_ok = spec.rows.iter().all(|r| match r {
+            ScreenRow::Label { .. } => true,
+            ScreenRow::Button { id, .. } | ScreenRow::Toggle { id, .. } => !id.is_empty(),
+        });
+        ids_ok.then_some(spec)
+    }
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -111,6 +165,25 @@ impl Manifest {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_screen_is_read_and_limited() {
+        let long = "x".repeat(200);
+        let json = format!(r#"{{"title":"{long}","rows":[{{"kind":"label","text":"hi"}},{{"kind":"button","id":"go","text":"Go"}},{{"kind":"toggle","id":"t","text":"T","on":true}}]}}"#);
+        let spec = ScreenSpec::parse(&json).unwrap();
+        assert_eq!(spec.title.chars().count(), MAX_SCREEN_TEXT);
+        assert_eq!(spec.rows.len(), 3);
+        assert_eq!(spec.rows[2], ScreenRow::Toggle { id: "t".into(), text: "T".into(), on: true });
+        let many = format!(r#"{{"rows":[{}]}}"#, vec![r#"{"kind":"label","text":"a"}"#; 40].join(","));
+        assert_eq!(ScreenSpec::parse(&many).unwrap().rows.len(), MAX_SCREEN_ROWS);
+    }
+
+    #[test]
+    fn a_button_without_an_id_or_nonsense_is_refused() {
+        assert!(ScreenSpec::parse(r#"{"rows":[{"kind":"button","id":"","text":"Go"}]}"#).is_none());
+        assert!(ScreenSpec::parse("nonsense").is_none());
+        assert!(ScreenSpec::parse(r#"{"rows":[{"kind":"slider"}]}"#).is_none());
+    }
 
     const OK: &str = "name = \"compass\"\nversion = \"1.0\"\napi_version = 1\npermissions = [\"hud\"]\nsubscribe = [\"tick\", \"key\"]\ncommands = [\"north\"]\n";
 

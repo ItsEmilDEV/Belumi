@@ -20,8 +20,8 @@ name = "hello-client"          # 1-32 characters of a-z 0-9 - _
 version = "0.1.0"
 api_version = 1                # must equal the client's ABI version
 description = "..."
-permissions = ["chat", "hud"]  # what the plugin may do
-subscribe = ["tick", "key"]    # events it receives: tick, key, chat, join, leave
+permissions = ["chat", "hud", "screen"]  # what the plugin may do
+subscribe = ["tick", "key"]    # events it receives: tick, key, chat, join, leave (screen presses always arrive)
 commands = ["hello"]           # /hello [args] runs the plugin, never reaches the server
 ```
 
@@ -42,6 +42,9 @@ Host imports (module `belumi`):
 | `log(level, ptr, len)` | none | none |
 | `chat_print(ptr, len)` | 0 ok, 1 denied, 2 queue full, -1 invalid memory | `chat` |
 | `hud_set(id_ptr, id_len, text_ptr, text_len)` | 0 ok, 1 denied, 2 line limit, -1 invalid memory | `hud` |
+| `screen_set(ptr, len)` | 0 ok, 1 denied, -1 invalid JSON or memory | `screen` |
+| `screen_open()` | 0 ok, 1 denied, -1 no screen set yet | `screen` |
+| `screen_close()` | 0 ok, 1 denied | `screen` |
 | `player(ptr, cap)` | JSON length, larger than `cap` means retry with a bigger buffer, -1 error | none |
 
 `hud_set` with empty text removes the line. Limits: 16 HUD lines of 120 characters per plugin, 64 queued chat lines,
@@ -51,6 +54,24 @@ Host imports (module `belumi`):
 
 Events: `tick {tick}`, `key {key, pressed}` (vanilla key names such as `key.keyboard.g`), `chat {text}` (every line the
 chat receives), `command {name, args}` (only to the owner of the command), `join {address}`, `leave`.
+
+## Own screens
+
+A plugin with the `screen` permission describes a screen as JSON and the game draws it on the client screen's **Plugins** page
+(Right Shift, Modules, Plugin screens). `screen_open` brings it up at once (for example on a key or a command).
+
+```json
+{"title": "Hello", "rows": [
+  {"kind": "label", "text": "Some text"},
+  {"kind": "button", "id": "greet", "text": "Say hello"},
+  {"kind": "toggle", "id": "loud", "text": "Shout", "on": false}
+]}
+```
+
+At most 24 rows; texts are cut at 60 characters, ids at 32. A press arrives as `screen {id, value}` (`value` is a toggle's new
+state, false for a button); the plugin sends the screen again to show a new state. In Rust: `host::set_screen(&Screen::new("Hello")
+.label("...").button("greet", "Say hello").toggle("loud", "Shout", false))`, then `host::open_screen()`.
+`examples/hello-client-plugin` opens one with the O key or `/hello screen`.
 
 ## Safety
 

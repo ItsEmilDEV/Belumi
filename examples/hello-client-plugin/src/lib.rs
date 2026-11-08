@@ -1,9 +1,19 @@
-use belumi_client_plugin_sdk::{Event, EventResult, Plugin, export_plugin, host};
+use belumi_client_plugin_sdk::{Event, EventResult, Plugin, Screen, export_plugin, host};
 
 #[derive(Default)]
 struct Hello {
     ticks: u64,
     presses: u32,
+    loud: bool,
+}
+
+impl Hello {
+    fn screen(&self) -> Screen {
+        Screen::new("Hello")
+            .label("A screen made by a plugin")
+            .button("greet", "Say hello in chat")
+            .toggle("loud", "Shout", self.loud)
+    }
 }
 
 impl Plugin for Hello {
@@ -23,9 +33,27 @@ impl Plugin for Hello {
                     let _ = host::set_hud("ticks", &line);
                 }
             }
+            Event::Key { key, pressed: true } if key == "key.keyboard.o" => {
+                let _ = host::set_screen(&self.screen());
+                let _ = host::open_screen();
+            }
             Event::Key { pressed: true, .. } => {
                 self.presses += 1;
                 let _ = host::set_hud("keys", &format!("Plugin: {} key presses", self.presses));
+            }
+            Event::Command { name, args } if name == "hello" && args.trim() == "screen" => {
+                let _ = host::set_screen(&self.screen());
+                let _ = host::open_screen();
+                return EventResult::Cancel;
+            }
+            Event::Screen { id, value } => {
+                if id == "loud" {
+                    self.loud = *value;
+                    let _ = host::set_screen(&self.screen());
+                } else if id == "greet" {
+                    let text = if self.loud { "HELLO FROM THE SCREEN!" } else { "Hello from the screen." };
+                    let _ = host::print_chat(text);
+                }
             }
             Event::Command { name, args } if name == "hello" => {
                 let who = if args.trim().is_empty() { "world" } else { args.trim() };

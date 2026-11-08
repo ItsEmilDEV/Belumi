@@ -1,4 +1,5 @@
 pub use belumi_client_plugin_api::{Event, EventKind, EventResult, Manifest, Permission};
+pub use belumi_client_plugin_api::{ScreenRow, ScreenSpec};
 use belumi_client_plugin_api::{
     ABI_VERSION, ManifestError, MAX_CHAT_CHARS, MAX_HUD_CHARS, MAX_HUD_LINES,
 };
@@ -16,6 +17,7 @@ use wasmtime::{
 const FUEL_PER_CALL: u64 = 20_000_000;
 const MEMORY_LIMIT: usize = 32 * 1024 * 1024;
 const MAX_QUEUED_CHAT: usize = 64;
+const MAX_SCREEN_JSON: usize = 8192;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PluginError {
@@ -42,6 +44,10 @@ struct Inner {
     chat: Vec<String>,
     hud: BTreeMap<(String, String), String>,
     player: String,
+    /// Each plugin's screen, the plugin that asked to show its screen, and whether one asked to close it.
+    screens: BTreeMap<String, ScreenSpec>,
+    open: Option<String>,
+    close: bool,
 }
 
 #[derive(Clone, Default)]
@@ -59,6 +65,18 @@ impl Shared {
     }
     pub fn hud_lines(&self) -> Vec<String> {
         self.with(|i| i.hud.values().cloned().collect())
+    }
+    /// The screens plugins have set, by plugin name.
+    pub fn screens(&self) -> Vec<(String, ScreenSpec)> {
+        self.with(|i| i.screens.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+    }
+    /// The plugin whose screen should open now, once.
+    pub fn take_open(&self) -> Option<String> {
+        self.with(|i| i.open.take())
+    }
+    /// Whether a plugin asked to close the screen, once.
+    pub fn take_close(&self) -> bool {
+        self.with(|i| std::mem::take(&mut i.close))
     }
     fn push_chat(&self, text: String) -> bool {
         self.with(|i| {
@@ -85,7 +103,13 @@ impl Shared {
         })
     }
     fn clear_hud(&self, plugin: &str) {
-        self.with(|i| i.hud.retain(|k, _| k.0 != plugin));
+        self.with(|i| {
+            i.hud.retain(|k, _| k.0 != plugin);
+            i.screens.remove(plugin);
+            if i.open.as_deref() == Some(plugin) {
+                i.open = None;
+            }
+        });
     }
 }
 
@@ -184,6 +208,53 @@ impl Plugin {
                     return 1;
                 }
                 st.shared.set_hud(&st.name, id, text)
+            },
+        )?;
+        linker.func_wrap(
+            "belumi",
+            "screen_set",
+            |mut c: wasmtime::Caller<'_, HostState>, ptr: i32, len: i32| -> i32 {
+                let Some(json) = guest_text(&mut c, ptr, len, MAX_SCREEN_JSON) else {
+                    return -1;
+                };
+                let st = c.data();
+                if !st.permissions.contains(&Permission::Screen) {
+                    return 1;
+                }
+                let Some(spec) = ScreenSpec::parse(&json) else {
+                    return -1;
+                };
+                let name = st.name.clone();
+                st.shared.with(|i| i.screens.insert(name, spec));
+                0
+            },
+        )?;
+        linker.func_wrap(
+            "belumi",
+            "screen_open",
+            |c: wasmtime::Caller<'_, HostState>| -> i32 {
+                let st = c.data();
+                if !st.permissions.contains(&Permission::Screen) {
+                    return 1;
+                }
+                let name = st.name.clone();
+                if !st.shared.with(|i| i.screens.contains_key(&name)) {
+                    return -1;
+                }
+                st.shared.with(|i| i.open = Some(name));
+                0
+            },
+        )?;
+        linker.func_wrap(
+            "belumi",
+            "screen_close",
+            |c: wasmtime::Caller<'_, HostState>| -> i32 {
+                let st = c.data();
+                if !st.permissions.contains(&Permission::Screen) {
+                    return 1;
+                }
+                st.shared.with(|i| i.close = true);
+                0
             },
         )?;
         linker.func_wrap(
@@ -305,6 +376,9 @@ fn event_json(event: &Event) -> Option<String> {
         ),
         Event::Join { address } => format!("{{\"type\":\"join\",\"address\":{}}}", esc(address)?),
         Event::Leave => "{\"type\":\"leave\"}".to_owned(),
+        Event::Screen { id, value } => {
+            format!("{{\"type\":\"screen\",\"id\":{},\"value\":{value}}}", esc(id)?)
+        }
     })
 }
 
@@ -419,6 +493,16 @@ impl Host {
         found
     }
 
+    /// A press on a plugin's own screen goes to that plugin only, whatever it subscribed to.
+    pub fn screen_event(&mut self, plugin: &str, id: &str, value: bool) {
+        let event = Event::Screen { id: id.to_owned(), value };
+        if let Some(p) = self.plugins.iter_mut().find(|p| p.manifest.name == plugin && !p.disabled)
+            && let Err(e) = p.deliver(&event)
+        {
+            self.errors.push(format!("{}: {e}", p.manifest.name));
+        }
+    }
+
     pub fn dispatch(&mut self, event: &Event) {
         let kind = event.kind();
         for p in &mut self.plugins {
@@ -490,6 +574,52 @@ mod tests {
         assert!(host.shared().take_chat().is_empty());
         assert!(host.shared().hud_lines().is_empty());
         assert!(!host.info()[0].disabled);
+    }
+
+    fn screen_module(perms: &str) -> (Manifest, Vec<u8>) {
+        let wasm = wat::parse_str(
+            r#"(module
+  (import "belumi" "screen_set" (func $set (param i32 i32) (result i32)))
+  (import "belumi" "screen_open" (func $open (result i32)))
+  (import "belumi" "chat_print" (func $chat (param i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (data (i32.const 0) "{\"title\":\"T\",\"rows\":[{\"kind\":\"button\",\"id\":\"go\",\"text\":\"Go\"}]}")
+  (data (i32.const 200) "pressed")
+  (func (export "belumi_alloc") (param i32) (result i32) (i32.const 1024))
+  (func (export "belumi_on_event") (param i32 i32) (result i32)
+    (if (i32.eq (i32.load8_u (i32.add (local.get 0) (i32.const 9))) (i32.const 115))
+      (then (drop (call $chat (i32.const 200) (i32.const 7))))
+      (else (drop (call $set (i32.const 0) (i32.const 62))) (drop (call $open))))
+    (i32.const 0)))"#,
+        )
+        .unwrap();
+        (manifest(perms, "\"tick\"", ""), wasm)
+    }
+
+    #[test]
+    fn a_plugin_sets_and_opens_its_screen_and_gets_the_presses() {
+        let (m, wasm) = screen_module("\"screen\", \"chat\"");
+        let mut host = Host::new().unwrap();
+        host.load_bytes(m, &wasm).unwrap();
+        host.dispatch(&Event::Tick { tick: 1 });
+        let screens = host.shared().screens();
+        assert_eq!(screens.len(), 1);
+        assert_eq!(screens[0].1.title, "T");
+        assert_eq!(host.shared().take_open().as_deref(), Some("t"));
+        assert_eq!(host.shared().take_open(), None);
+        host.screen_event("t", "go", false);
+        assert_eq!(host.shared().take_chat(), vec!["pressed".to_owned()]);
+        assert!(host.take_errors().is_empty());
+    }
+
+    #[test]
+    fn without_the_permission_no_screen_appears() {
+        let (m, wasm) = screen_module("\"chat\"");
+        let mut host = Host::new().unwrap();
+        host.load_bytes(m, &wasm).unwrap();
+        host.dispatch(&Event::Tick { tick: 1 });
+        assert!(host.shared().screens().is_empty());
+        assert!(host.shared().take_open().is_none());
     }
 
     #[test]

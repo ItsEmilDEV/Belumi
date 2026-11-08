@@ -2,6 +2,31 @@
 
 pub use belumi_client_plugin_api::{ABI_VERSION, Event, EventResult};
 
+/// A screen built row by row: `Screen::new("Title").label("Hello").button("go", "Go").toggle("t", "Option", true)`.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Screen(belumi_client_plugin_api::ScreenSpec);
+
+impl Screen {
+    pub fn new(title: &str) -> Self {
+        Self(belumi_client_plugin_api::ScreenSpec { title: title.to_owned(), rows: Vec::new() })
+    }
+    pub fn label(mut self, text: &str) -> Self {
+        self.0.rows.push(belumi_client_plugin_api::ScreenRow::Label { text: text.to_owned() });
+        self
+    }
+    pub fn button(mut self, id: &str, text: &str) -> Self {
+        self.0.rows.push(belumi_client_plugin_api::ScreenRow::Button { id: id.to_owned(), text: text.to_owned() });
+        self
+    }
+    pub fn toggle(mut self, id: &str, text: &str, on: bool) -> Self {
+        self.0.rows.push(belumi_client_plugin_api::ScreenRow::Toggle { id: id.to_owned(), text: text.to_owned(), on });
+        self
+    }
+    pub fn to_json(&self) -> String {
+        serde_json::to_string(&self.0).unwrap_or_default()
+    }
+}
+
 pub trait Plugin: Default {
     fn init(&mut self) {}
     fn on_event(&mut self, event: &Event) -> EventResult;
@@ -22,6 +47,9 @@ pub mod host {
         fn chat_print(ptr: *const u8, len: i32) -> i32;
         fn hud_set(ip: *const u8, il: i32, tp: *const u8, tl: i32) -> i32;
         fn player(ptr: *mut u8, cap: i32) -> i32;
+        fn screen_set(ptr: *const u8, len: i32) -> i32;
+        fn screen_open() -> i32;
+        fn screen_close() -> i32;
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -35,6 +63,15 @@ pub mod host {
         }
         pub unsafe fn player(_: *mut u8, _: i32) -> i32 {
             2
+        }
+        pub unsafe fn screen_set(_: *const u8, _: i32) -> i32 {
+            0
+        }
+        pub unsafe fn screen_open() -> i32 {
+            0
+        }
+        pub unsafe fn screen_close() -> i32 {
+            0
         }
     }
     #[cfg(not(target_arch = "wasm32"))]
@@ -76,6 +113,21 @@ pub mod host {
 
     pub fn clear_hud(id: &str) -> Result<(), HostError> {
         set_hud(id, "")
+    }
+
+    /// Sets the plugin's screen (needs the `screen` permission). It shows on the client screen's Plugins page and opens
+    /// with `open_screen`; presses arrive as `Event::Screen`.
+    pub fn set_screen(screen: &super::Screen) -> Result<(), HostError> {
+        let json = screen.to_json();
+        result(unsafe { screen_set(json.as_ptr(), len(&json)) })
+    }
+
+    pub fn open_screen() -> Result<(), HostError> {
+        result(unsafe { screen_open() })
+    }
+
+    pub fn close_screen() -> Result<(), HostError> {
+        result(unsafe { screen_close() })
     }
 
     #[derive(Debug, Clone, PartialEq, serde::Deserialize)]
