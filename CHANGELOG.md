@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Distant chunks (Bobby alternative): columns a server forgot stay drawn out to your render distance and are cached on disk
   for the next visit (`belumi-chunks/`, 1 GB limit); switch on the Modules page
 
+- Gamma boost beyond the slider with keys for it and for fullbright
 - Inspect HUD module (Jade): name, hardness, state and remembered chest contents of the block in the crosshair, name and health of a creature
 - Light overlay: red and yellow Xs where monsters can spawn
 - Accurate placement (off by default): fast block placing with the right button held and no creative break pause, with the vanilla wait kept for containers, doors and scaffolding
