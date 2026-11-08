@@ -22,6 +22,7 @@ cargo run --release -p belumi-launcher   # or: cargo run -p belumi-launcher
 
 - **Play** is the centre: the account, the big Play button, then your servers (with a live ping: online or offline,
   players, latency) and your singleplayer worlds with a one-click start. "Main menu" starts the game without joining.
+- Switching in the game: the game lists the saved accounts (`belumi-accounts.json` in the game folder, names and ids only); picking one writes `belumi-switch.json` and quits, and the launcher signs that account in and starts the game on the same server. Not available when the launcher closes itself at start.
 - A server can have its own account (select the server, pick one under Account): the launcher switches to it before
   the start.
 - Headless start for shortcuts and scripts: `belumi-launcher --play [--offline] [--server HOST[:PORT] | --world NAME | --main-menu]`

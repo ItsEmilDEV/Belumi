@@ -14,6 +14,7 @@ mod kit;
 mod os;
 mod prism;
 mod secret;
+mod switch;
 mod settings;
 mod skin3d;
 mod worlds;
@@ -594,6 +595,9 @@ impl App {
             let _ = std::fs::create_dir_all(dir);
         }
         self.crash = None;
+        if online {
+            switch::write_accounts(&self.settings, &worlds::game_dir(&self.settings.game_dir));
+        }
         let log = std::fs::File::create(&self.log_path).ok();
         match game::launch(&self.settings, account.as_ref(), &target, log) {
             Ok(mut child) => {
@@ -716,7 +720,8 @@ impl App {
                     if let Some((online, target)) = self.pending_play.take() {
                         self.pending_play = None;
                         let wanted = self.settings.servers.get(self.settings.selected_server).map(|s| s.account.clone());
-                        if wanted.as_deref().is_none_or(|w| w.is_empty() || w == self.settings.active_account) {
+                        // Only the saved server's own account matters when that server is what starts.
+                        if !matches!(target, game::Target::Server) || wanted.as_deref().is_none_or(|w| w.is_empty() || w == self.settings.active_account) {
                             self.play(online, target);
                         }
                     }
@@ -781,6 +786,12 @@ impl App {
                     self.crash = crash::from_log(code, &log);
                     if self.crash.is_some() {
                         self.status = i18n::tr("The game stopped unexpectedly.");
+                    } else if let Some((uuid, address)) = switch::take_request(&worlds::game_dir(&self.settings.game_dir)) {
+                        let target = if address.is_empty() { game::Target::MainMenu } else { game::Target::Address(address) };
+                        if self.switch_account(&uuid) {
+                            self.pending_play = Some((true, target));
+                            self.status = i18n::tr("Switching to the account you picked in the game...");
+                        }
                     }
                 }
                 Event::Diagnosed(result) => {

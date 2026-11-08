@@ -49,7 +49,9 @@ builder (0 % leaves only the text).
 The **Modules** button leads to the modules without a place on the HUD: toggle sprint and sneak, freelook (hold Left Alt: the
 camera looks around while the player keeps his direction), crosshair editor (presets, shape, colour with red, green and blue steps, size, thickness, gap, outline,
 dot, spread while moving), item tooltips with ids and durability, break warning, chat tools, auto-reconnect, fullbright, mouse
-tweaks, sort buttons, own name tag, and the replays.
+tweaks, sort buttons, own name tag, the replays, and **Switch account**: it lists the accounts saved in the launcher (names only, never
+tokens, from `belumi-accounts.json`); picking one saves the world, ends the game and the launcher signs that account in and starts
+the game again on the same server. It needs the game to be started from the launcher and the launcher to stay open (not "close at start").
 
 **Chat tools** (Modules > Chat tools): time stamps, merging of repeated lines (`(x3)`), words that hide a line, words that
 colour a line, a bell when your name is written, and a history of up to 2000 lines. `/find TEXT` searches the history.
