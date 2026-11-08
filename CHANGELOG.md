@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Distant chunks (Bobby alternative): columns a server forgot stay drawn out to your render distance and are cached on disk
   for the next visit (`belumi-chunks/`, 1 GB limit); switch on the Modules page
 
+- Pings (Z) and shared waypoints (`/sharewp`, `/acceptwp`) between Belumi players on a Horizon server
 - Replay video: F7 saves the replay as pictures and makes an MP4 with ffmpeg; `/replay play N`
 - Redstone workbench: signal numbers over dust, /tick buttons and a Profiler HUD module with the server tick's biggest parts
 - World history and `/rollback RADIUS MINUTES`: older chunk versions are kept, and the chunks around you go back to how they were
