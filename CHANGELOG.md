@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Riptide fix: Depth Strider no longer slows a Riptide launch (vanilla bug MC-136249)
 - Ender chest tooltip: the item shows what the ender chest held; chest memory follows items moved while open
 - Sound controller: mute or turn down single sounds
+- Switch notices on the HUD, in chat or off; warnings when a switch could be seen as cheating
 - Blueprint: `rotate` and `mirror x|z`, with the block states turned along
 - Inspect looks 20 blocks far, shows players, objects, the tool in hand and the break time
 - Gamma boost beyond the slider with keys for it and for fullbright
