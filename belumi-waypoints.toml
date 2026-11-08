@@ -1,0 +1,8 @@
+[[waypoint]]
+scope = "world:"
+dimension = "minecraft:overworld"
+name = "Spawn"
+x = 0
+y = 116
+z = 0
+color = 16733525
