@@ -883,6 +883,60 @@ impl App {
             }
             ui.label(muted(tr("A plugin is code that runs in a sandbox and may only do what it asks for. Install plugins of people you trust.")));
         });
+        section(ui, &tr("Uninstall"));
+        card(ui, |ui| {
+            use crate::uninstall::Scope;
+            let options = [
+                (Scope::Cache, tr("Only cache and usage data"), tr("Chunk cache, maps, heads, logs, crash reports and statistics. Settings, accounts and worlds stay.")),
+                (Scope::App, tr("Only the app"), tr("Program files and menu entries. Settings, accounts, worlds and data stay.")),
+                (Scope::Everything, tr("Everything"), tr("The app and all its data: settings, accounts, prepared resources and caches.")),
+            ];
+            for (scope, label, hint) in options {
+                if ui.radio(self.uninstall_scope == scope, label).on_hover_text(hint.clone()).clicked() {
+                    self.uninstall_scope = scope;
+                    self.uninstall_plan = None;
+                }
+                ui.label(muted(hint));
+            }
+            if self.uninstall_scope == Scope::Everything && !self.settings.game_dir.trim().is_empty() {
+                ui.checkbox(&mut self.uninstall_worlds, tr("Also my worlds and screenshots (in the game folder)"));
+            }
+            ui.add_space(4.0);
+            if action(ui, Kind::Danger, None, &tr("Uninstall..."), true, vec2(0.0, 30.0)).clicked() {
+                let ctx = self.uninstall_context();
+                self.uninstall_plan = Some(crate::uninstall::plan(self.uninstall_scope, &ctx));
+            }
+        });
+        if let Some(plan) = self.uninstall_plan.clone() {
+            card(ui, |ui| {
+                if let Some(why) = &plan.refused {
+                    ui.label(why.as_str());
+                }
+                if plan.paths.is_empty() && plan.uninstaller.is_none() {
+                    ui.label(muted(tr("Nothing to remove.")));
+                } else {
+                    ui.label(RichText::new(tr("This deletes, for good:")).strong());
+                    egui::ScrollArea::vertical().max_height(150.0).show(ui, |ui| {
+                        for p in &plan.paths {
+                            ui.label(muted(p.display().to_string()));
+                        }
+                        if let Some(u) = &plan.uninstaller {
+                            ui.label(muted(format!("{} ({})", tr("The program files, with the installer's uninstaller"), u.display())));
+                        }
+                    });
+                }
+                ui.horizontal(|ui| {
+                    let can = !plan.paths.is_empty() || plan.uninstaller.is_some();
+                    if action(ui, Kind::Danger, None, &tr("Yes, delete"), can, vec2(0.0, 30.0)).clicked() {
+                        self.uninstall_plan = None;
+                        self.run_uninstall(plan.clone());
+                    }
+                    if action(ui, Kind::Secondary, None, &tr("Cancel"), true, vec2(0.0, 30.0)).clicked() {
+                        self.uninstall_plan = None;
+                    }
+                });
+            });
+        }
         section(ui, &tr("Discord"));
         card(ui, |ui| {
             changed |= ui

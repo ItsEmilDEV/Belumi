@@ -30,6 +30,7 @@ mod status;
 mod theme;
 mod ui;
 mod shaders;
+mod uninstall;
 mod update;
 mod versions;
 
@@ -165,6 +166,10 @@ struct App {
     add_server: bool,
     diagnosing: bool,
     fields_typed: bool,
+    uninstall_scope: uninstall::Scope,
+    uninstall_worlds: bool,
+    /// The plan the user is asked to confirm.
+    uninstall_plan: Option<uninstall::Plan>,
 }
 
 impl Drop for App {
@@ -257,6 +262,9 @@ impl App {
             add_server: false,
             diagnosing: false,
             fields_typed: false,
+            uninstall_scope: uninstall::Scope::Cache,
+            uninstall_worlds: false,
+            uninstall_plan: None,
         };
         update::clean_up_old();
         app.check_for_update(false);
@@ -414,6 +422,45 @@ impl App {
         }
         let rgba = heads::skin_cached(&self.heads_dir, uuid).unwrap_or_else(|| skin3d::placeholder(kit::t().accent));
         self.skins.insert(uuid.to_owned(), skin3d::Skin::new(ctx, &format!("skin-{uuid}"), &rgba));
+    }
+
+    fn uninstall_context(&self) -> uninstall::Context {
+        let paths = BelumiPaths::new();
+        let game = self.settings.game_dir.trim();
+        uninstall::Context {
+            exe_dir: std::env::current_exe().ok().and_then(|e| e.parent().map(std::path::Path::to_path_buf)),
+            config_dir: paths.config_dir().clone(),
+            data_dir: paths.data_dir().clone(),
+            game_dir: (!game.is_empty()).then(|| std::path::PathBuf::from(game)),
+            home: std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(std::path::PathBuf::from).unwrap_or_default(),
+            worlds: self.uninstall_worlds,
+        }
+    }
+
+    /// Deletes what the confirmed plan lists. After the app or all data went, the launcher ends at once (it must not write
+    /// its settings back).
+    fn run_uninstall(&mut self, plan: uninstall::Plan) {
+        let ctx = self.uninstall_context();
+        let report = uninstall::run(&plan, &ctx.home);
+        let gone_for_good = self.uninstall_scope != uninstall::Scope::Cache;
+        if gone_for_good {
+            if let Some(unins) = &plan.uninstaller {
+                let _ = std::process::Command::new(unins).spawn();
+            }
+            if report.failed.is_empty() {
+                std::process::exit(0);
+            }
+        }
+        self.status = if report.failed.is_empty() {
+            i18n::tr("Removed {} items.").replace("{}", &report.removed.to_string())
+        } else {
+            let (path, why) = &report.failed[0];
+            i18n::tr("Removed {} items, {} failed (first: {}: {}). Installed by a package manager? Remove it with that.")
+                .replacen("{}", &report.removed.to_string(), 1)
+                .replacen("{}", &report.failed.len().to_string(), 1)
+                .replacen("{}", &path.display().to_string(), 1)
+                .replacen("{}", why, 1)
+        };
     }
 
     fn save(&mut self) {
