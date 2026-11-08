@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Distant chunks (Bobby alternative): columns a server forgot stay drawn out to your render distance and are cached on disk
   for the next visit (`belumi-chunks/`, 1 GB limit); switch on the Modules page
 
+- Death clips: a death saves a clip by itself, named after the killer; K in the replay follows the killer with the camera
 - Chest memory: `/chests TEXT` finds the containers you opened that hold it, with a waypoint and compass target on a click
 - Changes since your last visit: cached and fresh columns are compared on a server, listed on a page, one click marks them
 - Way back: a compass HUD module (`/compass`), a breadcrumb trail (`/trail`) and automatic portal and spawn waypoints

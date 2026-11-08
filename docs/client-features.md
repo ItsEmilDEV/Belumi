@@ -70,6 +70,10 @@ marks on the timeline; a point within a quarter second replaces the old one), O 
 the points as the replay plays (a second O gives the camera back), Backspace clears the points. Before the first point and after
 the last the camera stands still. The points last until the replay is closed.
 
+**Death clips**: with recording on, a death saves a clip of the last moments by itself (named `Death 0:31 by zombie`; switch it with
+"Death clip" on the Replays page). The clip remembers who dealt the last blow (the server's damage event, else the nearest creature
+within 8 blocks). While it plays with the free camera, **K** makes the camera circle the killer, behind the player, with both in the picture.
+
 The oldest recordings are deleted past the limit (`keep`, 20).
 
 ## Builds and features
