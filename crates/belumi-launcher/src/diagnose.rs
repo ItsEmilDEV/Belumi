@@ -108,7 +108,7 @@ fn system_notes() -> Value {
     json!({
         "os": std::env::consts::OS,
         "arch": std::env::consts::ARCH,
-        "launcher_version": env!("CARGO_PKG_VERSION"),
+        "launcher_version": crate::VERSION,
         "processor": std::env::var("PROCESSOR_IDENTIFIER").unwrap_or_else(|_| read("/proc/cpuinfo").lines().find(|l| l.starts_with("model name")).unwrap_or("").to_owned()),
         "language": crate::i18n::system_language(),
     })

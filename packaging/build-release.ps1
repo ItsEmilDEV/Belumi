@@ -9,6 +9,8 @@ Set-Location $root
 if (-not $Version) {
     $Version = (Select-String -Path "Cargo.toml" -Pattern '^version = "(.*)"' | Select-Object -First 1).Matches.Groups[1].Value
 }
+# The launcher knows which version it is (the updater compares it, the window shows it).
+$env:BELUMI_VERSION = $Version
 # The programs carry the C runtime with them, so a clean Windows needs no Visual C++ redistributable.
 $env:RUSTFLAGS = "$env:RUSTFLAGS -C target-feature=+crt-static".Trim()
 # Opus (built from source with CMake) still declares CMake 3.x policies that CMake 4 refuses without this.

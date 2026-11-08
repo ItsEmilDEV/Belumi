@@ -1,5 +1,11 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
+/// The version of this launcher: the release's (`0.1.0-beta.6`, set by the release build as `BELUMI_VERSION`), else Cargo's.
+pub const VERSION: &str = match option_env!("BELUMI_VERSION") {
+    Some(v) if !v.is_empty() => v,
+    _ => env!("CARGO_PKG_VERSION"),
+};
+
 mod auth;
 mod cli;
 mod check;
@@ -270,7 +276,7 @@ impl App {
         let channel = update::Channel::parse(&self.settings.update_channel);
         let tx = self.tx.clone();
         std::thread::spawn(move || {
-            let found = update::check(channel, env!("CARGO_PKG_VERSION")).unwrap_or(None);
+            let found = update::check(channel, VERSION).unwrap_or(None);
             let _ = tx.send(Event::Update(found));
         });
     }

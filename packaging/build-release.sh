@@ -10,6 +10,8 @@ cd "$root"
 version="${1:-$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)}"
 arch="$(uname -m)"
 features="${BELUMI_FEATURES-belumi}"
+# The launcher knows which version it is (the updater compares it, the window shows it).
+export BELUMI_VERSION="$version"
 name="belumi-${version}-linux-${arch}"
 stage="dist/${name}"
 

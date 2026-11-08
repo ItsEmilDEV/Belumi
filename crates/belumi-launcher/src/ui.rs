@@ -1038,7 +1038,7 @@ impl eframe::App for App {
                     ui.label(RichText::new(word).color(theme.text).size(12.5));
                     ui.label(muted(&self.status));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.label(muted("Minecraft 26.2 / 26.3"));
+                        ui.label(muted(format!("Belumi {}  \u{b7}  Minecraft 26.2 / 26.3", crate::VERSION)));
                     });
                 });
             });
