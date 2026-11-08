@@ -19,6 +19,7 @@ extras) are on the same page as quick toggles.
 | Distant chunks | Modules page | Like the Bobby mod: columns a server sent stay drawn after it forgot them, out to your render distance (raise it past the server's), and are cached in `belumi-chunks/` so the next visit shows them before the server sends anything. The server's own columns replace cached ones; cached ones are not updated while you are away. The cache is pruned to 1 GB, oldest first; deleting the folder clears it |
 | Breadcrumb trail | Modules page, `/trail [on\|off\|clear]` | Small dots in the world behind you, one every 4 blocks (the last 200, per dimension), for finding the way back. The game also sets waypoints by itself: `Portal Overworld` / `Portal Nether` where you left a dimension, and `Spawn` |
 | Changes | Modules page | On a server, when a column comes back that the cache held, the blocks are compared. After a few seconds chat says how many chunks changed since your last visit; Modules > Changes lists them (most blocks first) and a click sets a waypoint and points the compass at it. Edits you watched yourself are remembered (`belumi-chunks/.../X.Z.seen`) and do not count; fluids, fire, leaves, snow and torches are ignored, and a column needs 4 changed blocks to count |
+| Chest memory | Modules page, `/chests TEXT` | On a server, every chest, barrel, shulker box, hopper and dispenser you open is remembered with what it held and when (`belumi-chests.json`, kept per world). `/chests diamond` lists the ones that hold something matching, nearest first; a click on a hit sets a waypoint and points the compass at it. A chest that was broken since (its block is air again where the chunk is loaded) is left out. Only what the server showed you is stored |
 | Packet inspector | F8 | Live packet rates and sizes, top packets by bytes, the latest packets |
 | Freecam | F9 | Detaches the camera and blocks all movement input of the player; WASD, Space, Shift, Ctrl for speed, the wheel changes speed |
 | Screen effects | | Vignette, saturation, contrast, colour temperature, sharpen, film grain ([effects.md](effects.md)) |
@@ -92,6 +93,7 @@ With the switch on but the feature missing, the game says so in chat once.
 | `belumi-maps/<world or server>/<dimension>/r.X.Z.bin` | The explored world map, one file per region of 32x32 chunks (changed regions are written in the background) |
 | `belumi-maps/<world or server>/<dimension>/cave-N/r.X.Z.bin` | The same for caves and the Nether: one map per 16-block height band `N` (`y >> 4`) of where you were |
 | `belumi-chunks/<server>/<dimension>/X.Z.bin` | The distant-chunk cache, one compressed column per file |
+| `belumi-chests.json` | The remembered containers |
 | `belumi-modules.toml` | The HUD layout and the settings of the modules (crosshair, chat tools, freelook, replays) |
 | `replays/*.brpl`, `*.clips.json` | Recorded sessions and their clips |
 | `belumi-plugins/<name>/` | Client plugins |
