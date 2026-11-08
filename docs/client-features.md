@@ -56,7 +56,7 @@ switch them off), the wheel resizes the chosen module, the arrows nudge it, Ctrl
 | Clock | The time, with or without seconds |
 | Recording | A blinking REC light with the time of the running recording |
 | Inventory | Your 27 storage slots as a small grid |
-| Inspect | A few lines about the crosshair target, as the mod Jade does: a block's name, hardness ("needs a tool"), crop growth, signal strength, and the biggest stacks a chest you opened held; a creature's name and health (green, yellow, red). Players and some special entities (paintings, boats) are not covered yet |
+| Inspect | A few lines about the crosshair target, as the mod Jade does, as far as `inspect_range` reaches (20 blocks; the game's own reach is for hitting): a block's name, hardness, whether your tool in hand gets drops and how long breaking takes (survival), crop growth, signal strength, and the biggest stacks a chest you opened held; a creature's name and health (green, yellow, red); a player's name; and paintings, item frames, armor stands, boats and minecarts (within the game's reach) |
 | Profiler | In single player: the server tick's time (green under 25 ms of its 50) and the six parts that take the most (`tick_blocks`, `tick_mobs`, ...), smoothed over about ten ticks. In a world on a server it says so; the server's own numbers are not sent |
 | FPS | Frames per second, green from 60 |
 | Ping | Your latency on a server, green up to 80 ms |

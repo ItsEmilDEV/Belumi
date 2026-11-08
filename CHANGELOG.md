@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Riptide fix: Depth Strider no longer slows a Riptide launch (vanilla bug MC-136249)
 - Ender chest tooltip: the item shows what the ender chest held; chest memory follows items moved while open
 - Sound controller: mute or turn down single sounds
+- Inspect looks 20 blocks far, shows players, objects, the tool in hand and the break time
 - Gamma boost beyond the slider with keys for it and for fullbright
 - Inspect HUD module (Jade): name, hardness, state and remembered chest contents of the block in the crosshair, name and health of a creature
 - Light overlay: red and yellow Xs where monsters can spawn
