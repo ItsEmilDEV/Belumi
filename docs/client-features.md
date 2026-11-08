@@ -21,6 +21,7 @@ extras) are on the same page as quick toggles.
 | Changes | Modules page | On a server, when a column comes back that the cache held, the blocks are compared. After a few seconds chat says how many chunks changed since your last visit; Modules > Changes lists them (most blocks first) and a click sets a waypoint and points the compass at it. Edits you watched yourself are remembered (`belumi-chunks/.../X.Z.seen`) and do not count; fluids, fire, leaves, snow and torches are ignored, and a column needs 4 changed blocks to count |
 | Chest memory | Modules page, `/chests TEXT` | On a server, every chest, barrel, shulker box, hopper and dispenser you open is remembered with what it held and when (`belumi-chests.json`, kept per world). `/chests diamond` lists the ones that hold something matching, nearest first; a click on a hit sets a waypoint and points the compass at it. A chest that was broken since (its block is air again where the chunk is loaded) is left out. Only what the server showed you is stored |
 | Photo mode | with Freecam on: G, H, J | **G** circles the camera slowly around the block in the crosshair (or a point 10 blocks ahead); **H** takes a picture every 5 s into `screenshots/timelapse-N/`; **J** takes a 360° panorama (about 27 pictures stitched into a 4096 x 2048 equirectangular PNG in `screenshots/`, without HUD, hand and body, hold still for a few seconds). F1 hides the HUD as always. Freecam has to be switched on in Belumi Settings |
+| Combat log | Modules page, `/combat` | Every fight (it ends 8 s after the last swing, hit or damage) is written down in `belumi-combat.json` (the last 50): swings, hits that landed (a creature that lost health after you swung at it; for players the server's damage event), damage dealt and taken, the peak and second-by-second clicks per second, and who you fought. A short summary shows when it ends; the page lists them with a small CPS graph |
 | Packet inspector | F8 | Live packet rates and sizes, top packets by bytes, the latest packets |
 | Freecam | F9 | Detaches the camera and blocks all movement input of the player; WASD, Space, Shift, Ctrl for speed, the wheel changes speed |
 | Screen effects | | Vignette, saturation, contrast, colour temperature, sharpen, film grain ([effects.md](effects.md)) |
@@ -99,6 +100,7 @@ With the switch on but the feature missing, the game says so in chat once.
 | `belumi-maps/<world or server>/<dimension>/cave-N/r.X.Z.bin` | The same for caves and the Nether: one map per 16-block height band `N` (`y >> 4`) of where you were |
 | `belumi-chunks/<server>/<dimension>/X.Z.bin` | The distant-chunk cache, one compressed column per file |
 | `belumi-chests.json` | The remembered containers |
+| `belumi-combat.json` | The last fights |
 | `belumi-modules.toml` | The HUD layout and the settings of the modules (crosshair, chat tools, freelook, replays) |
 | `replays/*.brpl`, `*.clips.json` | Recorded sessions and their clips |
 | `belumi-plugins/<name>/` | Client plugins |
