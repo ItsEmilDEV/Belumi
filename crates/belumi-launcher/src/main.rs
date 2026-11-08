@@ -9,6 +9,7 @@ mod fonts;
 mod game;
 mod heads;
 mod icons;
+mod join;
 mod i18n;
 mod kit;
 mod os;
@@ -141,6 +142,8 @@ struct App {
     head_asked: std::collections::HashSet<String>,
     skins: std::collections::HashMap<String, skin3d::Skin>,
     pending_play: Option<(bool, game::Target)>,
+    /// A `belumi://join/...` link waiting for the player's answer.
+    join_request: Option<String>,
     crash: Option<crash::Report>,
     probes: std::collections::HashMap<String, (status::Probe, Instant)>,
     worlds: Vec<worlds::World>,
@@ -230,6 +233,7 @@ impl App {
             head_asked: Default::default(),
             skins: Default::default(),
             pending_play: None,
+            join_request: None,
             crash: None,
             probes: Default::default(),
             worlds: Vec::new(),
@@ -565,6 +569,43 @@ impl App {
         }
     }
 
+    /// The question a join link raises: join, join offline, or not.
+    fn handle_join(&mut self, ctx: &egui::Context) {
+        let Some(address) = self.join_request.clone() else { return };
+        let mut answer: Option<Option<bool>> = None;
+        egui::Window::new(i18n::tr("Join a server"))
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .show(ctx, |ui| {
+                ui.label(i18n::trf("A link wants to start Belumi on {}.", &[&address]));
+                ui.label(i18n::tr("Only join servers you know."));
+                ui.horizontal(|ui| {
+                    if ui.button(i18n::tr("Join")).clicked() {
+                        answer = Some(Some(true));
+                    }
+                    if ui.button(i18n::tr("Join offline")).clicked() {
+                        answer = Some(Some(false));
+                    }
+                    if ui.button(i18n::tr("Cancel")).clicked() {
+                        answer = Some(None);
+                    }
+                });
+            });
+        let Some(choice) = answer else { return };
+        self.join_request = None;
+        let Some(online) = choice else { return };
+        let target = game::Target::Address(address);
+        if !online || self.account.is_some() {
+            self.play(online, target);
+        } else if self.busy {
+            self.pending_play = Some((true, target));
+            self.status = i18n::tr("Signing in, then joining...");
+        } else {
+            self.status = i18n::tr("Sign in first (or play offline).");
+        }
+    }
+
     fn play(&mut self, online: bool, target: game::Target) {
         if online && self.source == Some(Source::Prism) {
             self.import_prism(false);
@@ -828,5 +869,14 @@ fn main() -> eframe::Result {
             .with_min_inner_size([700.0, 520.0]),
         ..Default::default()
     };
-    eframe::run_native("Belumi", options, Box::new(|_| Ok(Box::new(App::new()))))
+    let join = join::from_args(std::env::args().skip(1));
+    eframe::run_native(
+        "Belumi",
+        options,
+        Box::new(move |_| {
+            let mut app = App::new();
+            app.join_request = join;
+            Ok(Box::new(app))
+        }),
+    )
 }

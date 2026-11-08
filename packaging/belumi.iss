@@ -43,6 +43,12 @@ Source: "{#SourceDir}\README.txt"; DestDir: "{app}"; Flags: ignoreversion isread
 Name: "{autoprograms}\Belumi"; Filename: "{app}\belumi-launcher.exe"
 Name: "{autodesktop}\Belumi"; Filename: "{app}\belumi-launcher.exe"; Tasks: desktopicon
 
+[Registry]
+; belumi://join/host:port links open the launcher, which asks before it joins.
+Root: HKA; Subkey: "Software\Classes\belumi"; ValueType: string; ValueName: ""; ValueData: "URL:Belumi"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\belumi"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\belumi\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\belumi-launcher.exe"" ""%1"""
+
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 

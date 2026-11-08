@@ -48,6 +48,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Command>, 
             "--world" => {
                 target = Target::World(args.next().ok_or("--world needs a world name")?);
             }
+            // A join link belongs to the window (it asks first): it is not a headless start.
+            link if crate::join::parse(link).is_some() => {}
             "--help" | "-h" => return Err(String::new()),
             other => return Err(format!("unknown option {other}")),
         }

@@ -922,6 +922,7 @@ impl eframe::App for App {
         self.watch_prism();
         self.watch_renewal();
         self.handle_drops(ui.ctx());
+        self.handle_join(ui.ctx());
         if let Some(command) = self.window_cmd.take() {
             ui.ctx().send_viewport_cmd(command);
         }

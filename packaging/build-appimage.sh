@@ -28,7 +28,8 @@ cat > "$app/belumi.desktop" <<'DESKTOP'
 Type=Application
 Name=Belumi
 Comment=Minecraft 26.2 / 26.3 client launcher
-Exec=belumi-launcher
+Exec=belumi-launcher %u
+MimeType=x-scheme-handler/belumi;
 Icon=belumi
 StartupWMClass=belumi-launcher
 Categories=Game;
