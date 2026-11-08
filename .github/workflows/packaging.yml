@@ -26,6 +26,7 @@ jobs:
           cp /bin/true "$stage/bin/horizon-client"
           cp packaging/belumi.desktop packaging/belumi-launcher.desktop "$stage/share/applications/"
           cp packaging/belumi-game-512.png "$stage/share/icons/hicolor/512x512/apps/belumi.png"
+          mkdir -p "$stage/share/belumi/horizon-files" && echo "{}" > "$stage/share/belumi/horizon-files/research-lock.json"
           cp LICENSE "$stage/LICENSE"
           cp packaging/README-release.txt "$stage/README.txt"
 
