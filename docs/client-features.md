@@ -16,6 +16,7 @@ extras) are on the same page as quick toggles.
 | Player-list view | Tab (held) | While the player list is held, both maps show players as their face with the name below and mobs as their spawn egg (with the name they were given, if any) instead of dots |
 | World map | M | Overlay of everything you explored, saved per world and server. Left button drags, arrows/WASD move, wheel zooms, C centres on you, PageUp/PageDown change the layer (Home: surface, End: follow you), B sets a waypoint at the crosshair, Enter teleports there (needs permission); the player stands still while it is open |
 | Waypoints | B | Saves your position; `/waypoint add [name]`, `remove NAME`, `list`, `clear`, `import FOLDER_OR_FILE` (Xaero waypoint files, dimension from the `dim%N` folder, duplicates skipped); labels in the world, on the maps and a nearest list |
+| Distant chunks | Modules page | Like the Bobby mod: columns a server sent stay drawn after it forgot them, out to your render distance (raise it past the server's), and are cached in `belumi-chunks/` so the next visit shows them before the server sends anything. The server's own columns replace cached ones; cached ones are not updated while you are away. The cache is pruned to 1 GB, oldest first; deleting the folder clears it |
 | Packet inspector | F8 | Live packet rates and sizes, top packets by bytes, the latest packets |
 | Freecam | F9 | Detaches the camera and blocks all movement input of the player; WASD, Space, Shift, Ctrl for speed, the wheel changes speed |
 | Screen effects | | Vignette, saturation, contrast, colour temperature, sharpen, film grain ([effects.md](effects.md)) |
@@ -85,6 +86,7 @@ With the switch on but the feature missing, the game says so in chat once.
 | `belumi-waypoints.toml` | Waypoints, grouped by world or server and dimension |
 | `belumi-maps/<world or server>/<dimension>/r.X.Z.bin` | The explored world map, one file per region of 32x32 chunks (changed regions are written in the background) |
 | `belumi-maps/<world or server>/<dimension>/cave-N/r.X.Z.bin` | The same for caves and the Nether: one map per 16-block height band `N` (`y >> 4`) of where you were |
+| `belumi-chunks/<server>/<dimension>/X.Z.bin` | The distant-chunk cache, one compressed column per file |
 | `belumi-modules.toml` | The HUD layout and the settings of the modules (crosshair, chat tools, freelook, replays) |
 | `replays/*.brpl`, `*.clips.json` | Recorded sessions and their clips |
 | `belumi-plugins/<name>/` | Client plugins |
