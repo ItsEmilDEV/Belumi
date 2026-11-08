@@ -72,6 +72,8 @@ F10 saves a clip of the last 30 seconds (the length is set on the page), F6 a bo
 page lists recordings and clips; Play opens one with a free camera. While it plays: Space pauses, `[` and `]` change the
 speed (0.25x to 16x), the arrows jump 5 s (Shift: 30 s), Home restarts, V switches between the free camera and the
 player's view, and Right Shift opens the controls with a clickable timeline. Jumping back restarts the session at that time.
+**Video**: F7 (or the Video button on the controls) starts saving the picture 30 times a second of replay time into `replays/video-N/` (no HUD; close the controls first); at the end of the clip or on F7 again `ffmpeg`, when installed, makes `replay.mp4` of constant 30 fps from them, at the right speed even if the machine missed frames, and removes the pictures. Without ffmpeg the pictures stay with a `make-video.sh`. Plan for the disk: about 1 MB per picture, so a minute is about 2 GB until the video is made. `/replay` opens the list, `/replay play N [CLIP]` plays the Nth recording (newest first) or its CLIPth clip.
+
 **Camera paths**: with the free camera on, P sets a camera point where the camera is at that moment of the replay (yellow
 marks on the timeline; a point within a quarter second replaces the old one), O makes the camera follow a smooth curve through
 the points as the replay plays (a second O gives the camera back), Backspace clears the points. Before the first point and after
