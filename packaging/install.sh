@@ -17,8 +17,9 @@ for entry in belumi-launcher belumi; do
   awk -v exe="$exe" '/^Exec=/ { sub(/^Exec=[^ ]*/, "Exec=" exe) } { print }' \
     "$here/share/applications/$entry.desktop" > "$prefix/share/applications/$entry.desktop"
 done
+rm -rf "$prefix/share/belumi/horizon-files" && mkdir -p "$prefix/share/belumi" && cp -R "$here/share/belumi/horizon-files" "$prefix/share/belumi/horizon-files"
 command -v update-desktop-database >/dev/null && update-desktop-database "$prefix/share/applications" 2>/dev/null || true
 command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q "$prefix/share/icons/hicolor" 2>/dev/null || true
 
 echo "Installed to $prefix. Start 'belumi-launcher' or find Belumi in your application menu."
-echo "The game needs prepared resources from your own Minecraft install; see README.txt."
+echo "On the first start the launcher downloads the game files from Mojang and prepares them (sign in first)."

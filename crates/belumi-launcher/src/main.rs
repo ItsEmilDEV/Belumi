@@ -30,6 +30,8 @@ mod status;
 mod theme;
 mod ui;
 mod shaders;
+mod mojang;
+mod setup;
 mod uninstall;
 mod update;
 mod versions;
@@ -78,6 +80,8 @@ enum Event {
     PluginList(Result<Vec<plugins::Entry>, String>),
     PluginDone(Result<String, String>),
     Head(String, Option<Vec<u8>>),
+    SetupLine(String),
+    SetupDone(Result<PathBuf, String>),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -140,6 +144,11 @@ struct App {
     update_announced: bool,
     /// The Solas download runs.
     shaders_busy: bool,
+    /// Downloading and preparing the game files.
+    setup_busy: bool,
+    setup_line: String,
+    setup_cancel: Arc<AtomicBool>,
+    setup_error: Option<String>,
     plugin_list: Vec<plugins::Entry>,
     plugin_busy: bool,
     /// The Solas pack's file name when the game folder has one; looked at again every few seconds.
@@ -239,6 +248,10 @@ impl App {
             update_error: None,
             update_announced: false,
             shaders_busy: false,
+            setup_busy: false,
+            setup_line: String::new(),
+            setup_cancel: Arc::new(AtomicBool::new(false)),
+            setup_error: None,
             plugin_list: Vec::new(),
             plugin_busy: false,
             solas: None,
@@ -364,6 +377,28 @@ impl App {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| shaders::download(&dir)))
                 .unwrap_or_else(|_| Err("Something went wrong while downloading.".to_owned()));
             let _ = tx.send(Event::Shaders(result));
+        });
+    }
+
+    /// Downloads the game files from Mojang and prepares them (the banner's button).
+    fn start_setup(&mut self) {
+        if self.setup_busy {
+            return;
+        }
+        self.setup_busy = true;
+        self.setup_error = None;
+        self.setup_line = i18n::tr("Starting...");
+        self.setup_cancel.store(false, Ordering::Relaxed);
+        let (tx, cancel, data) = (self.tx.clone(), self.setup_cancel.clone(), BelumiPaths::new().data_dir().clone());
+        std::thread::spawn(move || {
+            let log_tx = tx.clone();
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                setup::run(&data, &cancel, &|line| {
+                    let _ = log_tx.send(Event::SetupLine(line));
+                })
+            }))
+            .unwrap_or_else(|_| Err("Something went wrong while preparing the game.".to_owned()));
+            let _ = tx.send(Event::SetupDone(result));
         });
     }
 
@@ -922,6 +957,22 @@ impl App {
                         Ok(text) => text,
                         Err(e) => e,
                     };
+                }
+                Event::SetupLine(line) => self.setup_line = line,
+                Event::SetupDone(result) => {
+                    self.setup_busy = false;
+                    match result {
+                        Ok(folder) => {
+                            self.settings.resources = folder.display().to_string();
+                            self.save();
+                            self.checks = check::run(&self.settings);
+                            self.status = i18n::tr("The game is ready. Press Play.");
+                        }
+                        Err(e) => {
+                            self.status = i18n::tr("Preparing the game failed.");
+                            self.setup_error = Some(e);
+                        }
+                    }
                 }
                 Event::Shaders(result) => {
                     self.shaders_busy = false;

@@ -38,6 +38,7 @@ LicenseFile={#SourceDir}\LICENSE
 [Files]
 Source: "{#SourceDir}\belumi-launcher.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\horizon-client.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\horizon-files\*"; DestDir: "{app}\horizon-files"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#SourceDir}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\README.txt"; DestDir: "{app}"; Flags: ignoreversion isreadme
 

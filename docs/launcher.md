@@ -36,6 +36,14 @@ cargo run --release -p belumi-launcher   # or: cargo run -p belumi-launcher
   (a ZIP of the game log and the crash report with the home folder and token-like strings removed).
 - A first-start check lists a missing game file, missing prepared resources, an unwritable game folder or a missing
   Vulkan driver, with the path and what to do.
+- **Download and prepare**: when the prepared resources are missing, the Play page offers to get everything itself. It needs a
+  signed-in account. The launcher downloads the pinned Minecraft version from Mojang's own servers (piston-meta, piston-data,
+  libraries.minecraft.net, resources.download.minecraft.net; never a mirror), checking every file against the size and sha1 Mojang
+  lists, plus Mojang's Java runtime when no Java 25 is installed. It then prepares the resources with the linked-in
+  `horizon-prepare` (Horizon's exporters run on that Java) and copies the sounds. About 2 GB on disk in Belumi's data folder
+  (`prepare`, `minecraft`, `server-jars`), a few minutes the first time; a cancelled or failed run goes on where it stopped.
+  The same without a window: `belumi-launcher --setup`. Only the small `horizon-files` folder ships with Belumi (the pinned
+  versions in `research-lock.json` and the sources of Horizon's own exporters), never a Minecraft file.
 - Drop a shader pack `.zip` on the window to copy it into the game's `shaderpacks` folder.
 - Game log -> Run diagnose (or `belumi-launcher --diagnose`) collects a support report: see [diagnose.md](diagnose.md).
 - The launcher speaks English and German (Settings, or by the system language).

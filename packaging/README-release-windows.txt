@@ -6,8 +6,8 @@ Start belumi-launcher.exe. Sign in with a Microsoft account that owns Minecraft:
 * The game needs a graphics driver with Vulkan or DirectX 12 (every current GPU driver has one).
 * Windows may show "Unknown publisher" (SmartScreen) because the files are not code-signed yet:
   choose "More info" and then "Run anyway".
-* The game's files are prepared from your own Minecraft installation; the launcher's first-start check tells you
-  what is missing and where to put it.
+* The game's files come from Mojang: after you sign in, the launcher's "Download and prepare" button fetches them from
+  Mojang's own servers (about 1 GB) and prepares them. Nothing of Mojang's ships with Belumi.
 * Settings, accounts and logs live in %APPDATA%\Belumi. The sign-in is kept in the Windows Credential Manager
   (or, if it is too large for it, in an owner-only file there).
 

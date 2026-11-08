@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Riptide fix: Depth Strider no longer slows a Riptide launch (vanilla bug MC-136249)
 - Ender chest tooltip: the item shows what the ender chest held; chest memory follows items moved while open
 - Sound controller: mute or turn down single sounds
+- Launcher: **Download and prepare** gets the game from Mojang's own servers (checksummed, with Mojang's Java) and prepares it, so a fresh install can start without a Minecraft install or tools; `belumi-launcher --setup`
+- Windows: Belumi icon in the exe, installer and uninstall entry
 - Launcher: Settings, Uninstall: only cache and usage data, only the app, or everything (worlds on request), with a list to confirm; `packaging/uninstall.sh --cache|--all`
 - Pat (Shift + right button): squash, hearts, arm swing and sound on a petted creature, seen by other Belumi players
 - Launcher: the installed version shows in the status bar, and the updater compares the real release version (a prerelease like 0.1.0-beta.6), not only Cargo's 0.1.0

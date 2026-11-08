@@ -26,6 +26,7 @@ install -m755 vendor/horizon/target/release/horizon-client "$stage/bin/horizon-c
 install -m644 packaging/belumi-launcher.desktop "$stage/share/applications/belumi-launcher.desktop"
 install -m644 packaging/belumi.desktop "$stage/share/applications/belumi.desktop"
 install -m644 packaging/belumi-game-512.png "$stage/share/icons/hicolor/512x512/apps/belumi.png"
+packaging/stage-horizon-files.sh "$stage/share/belumi/horizon-files"
 install -m755 packaging/install.sh "$stage/install.sh"
 install -m755 packaging/uninstall.sh "$stage/uninstall.sh"
 install -m644 LICENSE "$stage/LICENSE"

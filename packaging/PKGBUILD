@@ -21,6 +21,7 @@ package() {
   install -Dm644 share/applications/belumi-launcher.desktop "$pkgdir/usr/share/applications/belumi-launcher.desktop"
   install -Dm644 share/applications/belumi.desktop "$pkgdir/usr/share/applications/belumi.desktop"
   install -Dm644 share/icons/hicolor/512x512/apps/belumi.png "$pkgdir/usr/share/icons/hicolor/512x512/apps/belumi.png"
+  mkdir -p "$pkgdir/usr/share/belumi" && cp -R share/belumi/horizon-files "$pkgdir/usr/share/belumi/horizon-files"
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   install -Dm644 README.txt "$pkgdir/usr/share/doc/$pkgname/README.txt"
 }

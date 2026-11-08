@@ -21,6 +21,7 @@ if [ -n "$opus" ] && [ -f "$opus" ]; then
   install -m644 "$(readlink -f "$opus")" "$app/usr/lib/$(basename "$opus")"
 fi
 
+mkdir -p "$app/usr/share/belumi" && cp -R "$stage/share/belumi/horizon-files" "$app/usr/share/belumi/horizon-files"
 install -m644 "$stage/share/icons/hicolor/512x512/apps/belumi.png" "$app/belumi.png"
 cp "$app/belumi.png" "$app/.DirIcon"
 cat > "$app/belumi.desktop" <<'DESKTOP'

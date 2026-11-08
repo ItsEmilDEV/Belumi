@@ -31,6 +31,10 @@ Pop-Location
 
 Copy-Item "target/release/belumi-launcher.exe" $stage
 Copy-Item "vendor/horizon/target/release/horizon-client.exe" $stage
+$files = Join-Path $stage "horizon-files"
+New-Item -ItemType Directory -Force -Path (Join-Path $files "mods/horizon/src/test") | Out-Null
+Copy-Item "vendor/horizon/research-lock.json" $files
+Copy-Item "vendor/horizon/mods/horizon/src/test/java" (Join-Path $files "mods/horizon/src/test") -Recurse
 Copy-Item "LICENSE" $stage
 Copy-Item "packaging/README-release-windows.txt" (Join-Path $stage "README.txt")
 

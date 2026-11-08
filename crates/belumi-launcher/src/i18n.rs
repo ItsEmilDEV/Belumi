@@ -45,6 +45,13 @@ pub fn system_language() -> String {
 
 const GERMAN: &[(&str, &str)] = &[
     ("Play", "Spielen"),
+    ("The game files are not here yet", "Die Spieldateien sind noch nicht da"),
+    ("Belumi downloads Minecraft from Mojang's own servers (about 1 GB, with the sounds) and prepares it for the game. It is not part of Belumi and needs the Microsoft account that owns Minecraft.", "Belumi lädt Minecraft von Mojangs eigenen Servern (etwa 1 GB, mit den Sounds) und bereitet es für das Spiel vor. Es ist nicht Teil von Belumi und braucht das Microsoft-Konto, dem Minecraft gehört."),
+    ("Download and prepare", "Herunterladen und vorbereiten"),
+    ("Sign in first (Account).", "Zuerst anmelden (Konto)."),
+    ("Starting...", "Startet..."),
+    ("The game is ready. Press Play.", "Das Spiel ist bereit. Drücke Spielen."),
+    ("Preparing the game failed.", "Die Vorbereitung ist fehlgeschlagen."),
     ("Uninstall", "Deinstallieren"),
     ("Uninstall...", "Deinstallieren..."),
     ("Only cache and usage data", "Nur Cache und Nutzungsdaten"),

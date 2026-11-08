@@ -23,6 +23,7 @@ mkdir -p "$pkg/DEBIAN" "$pkg/usr/bin" "$pkg/usr/share/applications" "$pkg/usr/sh
 install -m755 "$stage/bin/belumi-launcher" "$stage/bin/horizon-client" "$pkg/usr/bin/"
 install -m644 "$stage/share/applications/"*.desktop "$pkg/usr/share/applications/"
 install -m644 "$stage/share/icons/hicolor/512x512/apps/belumi.png" "$pkg/usr/share/icons/hicolor/512x512/apps/belumi.png"
+mkdir -p "$pkg/usr/share/belumi" && cp -R "$stage/share/belumi/horizon-files" "$pkg/usr/share/belumi/horizon-files"
 install -m644 "$stage/LICENSE" "$pkg/usr/share/doc/belumi/copyright"
 install -m644 "$stage/README.txt" "$pkg/usr/share/doc/belumi/README.txt"
 
@@ -39,7 +40,7 @@ Maintainer: Belumi <noreply@users.noreply.github.com>
 Homepage: https://github.com/ItsEmilDEV/Belumi
 Description: Belumi, a Minecraft: Java Edition client and launcher written in Rust
  Not made or approved by Mojang or Microsoft. The game needs resources prepared
- from your own Minecraft installation (see /usr/share/doc/belumi/README.txt).
+ from Mojang on the first start (see /usr/share/doc/belumi/README.txt).
 CONTROL
 
 mkdir -p "$out"

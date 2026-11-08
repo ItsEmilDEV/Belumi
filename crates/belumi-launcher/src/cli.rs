@@ -5,6 +5,7 @@ use crate::{prism, secret};
 use belumi_core::paths::BelumiPaths;
 
 pub const USAGE: &str = "Usage: belumi-launcher --play [--offline] [--server HOST[:PORT] | --world NAME | --main-menu]\n\
+       belumi-launcher --setup   (downloads the game files from Mojang and prepares them, so the game can start)
        belumi-launcher --diagnose [--offline] [--server HOST[:PORT]] [--out FOLDER]   (benchmarks, screenshots, logs into a report folder)\n\
 Starts the game without opening the launcher window, with the saved account (renewed first).\n\
   --offline     play with the offline name instead of an account\n\
@@ -22,6 +23,7 @@ pub struct Request {
 pub enum Command {
     Play(Request),
     Diagnose { offline: bool, server: Option<String>, out: Option<std::path::PathBuf> },
+    Setup,
 }
 
 /// `Ok(None)` when the arguments do not ask for a headless start.
@@ -31,12 +33,13 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Command>, 
         return Ok(None);
     }
     let (mut play, mut offline, mut target) = (false, false, Target::Server);
-    let (mut diagnose, mut out) = (false, None);
+    let (mut diagnose, mut out, mut setup) = (false, None, false);
     let mut server_arg: Option<String> = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--play" => play = true,
             "--diagnose" => diagnose = true,
+            "--setup" => setup = true,
             "--out" => out = Some(std::path::PathBuf::from(args.next().ok_or("--out needs a folder")?)),
             "--offline" => offline = true,
             "--main-menu" => target = Target::MainMenu,
@@ -53,6 +56,9 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Command>, 
             "--help" | "-h" => return Err(String::new()),
             other => return Err(format!("unknown option {other}")),
         }
+    }
+    if setup {
+        return Ok(Some(Command::Setup));
     }
     if diagnose {
         return Ok(Some(Command::Diagnose { offline, server: server_arg, out }));
@@ -202,6 +208,21 @@ pub fn run(args: impl IntoIterator<Item = String>) -> Option<i32> {
     let mut settings = Settings::load(&path);
     let request = match command {
         Command::Play(request) => request,
+        Command::Setup => {
+            let cancel = std::sync::atomic::AtomicBool::new(false);
+            return Some(match crate::setup::run(paths.data_dir(), &cancel, &|line| println!("{line}")) {
+                Ok(folder) => {
+                    settings.resources = folder.display().to_string();
+                    let _ = settings.save(&path);
+                    println!("Done. The game is ready: {}", folder.display());
+                    0
+                }
+                Err(e) => {
+                    eprintln!("belumi-launcher: {e}");
+                    1
+                }
+            });
+        }
         Command::Diagnose { offline, server, out } => {
             let account = if offline { None } else { account_for(&mut settings, &path).ok() };
             let server = server.or_else(diagnose_server);
@@ -308,6 +329,7 @@ mod tests {
 
     #[test]
     fn bad_arguments_are_refused() {
+        assert_eq!(parse(args(&["--setup"])), Ok(Some(Command::Setup)));
         assert!(parse(args(&["--play", "--world"])).is_err());
         assert!(parse(args(&["--wat"])).unwrap_err().contains("--wat"));
         assert_eq!(parse(args(&["--help"])), Err(String::new()));

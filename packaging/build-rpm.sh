@@ -39,7 +39,7 @@ Requires:       libasound.so.2()(64bit), libopus.so.0()(64bit), libvulkan.so.1()
 %description
 Belumi is a Minecraft: Java Edition client and launcher written in Rust, with voice chat, replays,
 a HUD builder and Discord Rich Presence. It is not made or approved by Mojang or Microsoft.
-The game needs resources prepared from your own Minecraft installation (see the README).
+On the first start the launcher downloads the game from Mojang and prepares it (see the README).
 
 %install
 install -Dm755 %{stage}/bin/belumi-launcher %{buildroot}%{_bindir}/belumi-launcher
@@ -47,6 +47,7 @@ install -Dm755 %{stage}/bin/horizon-client %{buildroot}%{_bindir}/horizon-client
 install -Dm644 %{stage}/share/applications/belumi-launcher.desktop %{buildroot}%{_datadir}/applications/belumi-launcher.desktop
 install -Dm644 %{stage}/share/applications/belumi.desktop %{buildroot}%{_datadir}/applications/belumi.desktop
 install -Dm644 %{stage}/share/icons/hicolor/512x512/apps/belumi.png %{buildroot}%{_datadir}/icons/hicolor/512x512/apps/belumi.png
+mkdir -p %{buildroot}%{_datadir}/belumi && cp -R %{stage}/share/belumi/horizon-files %{buildroot}%{_datadir}/belumi/horizon-files
 install -Dm644 %{stage}/LICENSE %{buildroot}%{_datadir}/licenses/belumi/LICENSE
 install -Dm644 %{stage}/README.txt %{buildroot}%{_docdir}/belumi/README.txt
 
@@ -56,6 +57,7 @@ install -Dm644 %{stage}/README.txt %{buildroot}%{_docdir}/belumi/README.txt
 %{_datadir}/applications/belumi-launcher.desktop
 %{_datadir}/applications/belumi.desktop
 %{_datadir}/icons/hicolor/512x512/apps/belumi.png
+%{_datadir}/belumi/horizon-files
 %license %{_datadir}/licenses/belumi/LICENSE
 %doc %{_docdir}/belumi/README.txt
 SPEC

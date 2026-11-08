@@ -239,8 +239,52 @@ impl App {
                 });
             });
         }
+        let resources_missing = self.checks.iter().any(|c| c.what == "Resources" && !c.ok);
+        if resources_missing || self.setup_busy {
+            card(ui, |ui| {
+                ui.horizontal(|ui| {
+                    crate::icons::icon(ui, Icon::Download, 18.0, t().accent);
+                    ui.vertical(|ui| {
+                        ui.label(RichText::new(tr("The game files are not here yet")).strong());
+                        ui.label(muted(tr(
+                            "Belumi downloads Minecraft from Mojang's own servers (about 1 GB, with the sounds) and prepares it for the game. It is not part of Belumi and needs the Microsoft account that owns Minecraft.",
+                        )));
+                    });
+                });
+                if self.setup_busy {
+                    ui.horizontal_wrapped(|ui| {
+                        let bar = match crate::mojang::progress() {
+                            Some((done, total)) => egui::ProgressBar::new(done as f32 / total.max(1) as f32).text(format!("{done} / {total}")),
+                            None => egui::ProgressBar::new(0.0).animate(true),
+                        };
+                        ui.add(bar.desired_width(200.0));
+                        if action(ui, Kind::Secondary, None, &tr("Cancel"), true, vec2(0.0, 30.0)).clicked() {
+                            self.setup_cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+                            crate::mojang::CANCEL.store(true, std::sync::atomic::Ordering::Relaxed);
+                        }
+                    });
+                    ui.label(muted(self.setup_line.clone()));
+                    ui.ctx().request_repaint_after(std::time::Duration::from_millis(200));
+                } else {
+                    let signed_in = self.account.is_some();
+                    ui.horizontal_wrapped(|ui| {
+                        if action(ui, Kind::Primary, Some(Icon::Download), &tr("Download and prepare"), signed_in, vec2(0.0, 32.0)).clicked() {
+                            self.start_setup();
+                        }
+                        if !signed_in {
+                            ui.label(muted(tr("Sign in first (Account).")));
+                        }
+                    });
+                }
+                if let Some(error) = &self.setup_error {
+                    ui.label(RichText::new(error.clone()).color(t().danger));
+                }
+            });
+        }
         let failed: Vec<(String, String)> = crate::check::failed(&self.checks)
             .iter()
+            .into_iter()
+            .filter(|c| c.what != "Resources")
             .map(|c| (tr(c.what), c.hint.clone()))
             .collect();
         if !failed.is_empty() {

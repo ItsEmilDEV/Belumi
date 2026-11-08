@@ -74,7 +74,7 @@ fn installed_client() -> Option<PathBuf> {
 
 fn installed_resources() -> Option<PathBuf> {
     installed_client()?;
-    Some(belumi_core::paths::BelumiPaths::new().data_dir().join("resources/26.3"))
+    Some(belumi_core::paths::BelumiPaths::new().data_dir().join("prepare/.local/horizon-client/26.3"))
 }
 
 impl Default for Settings {

@@ -40,8 +40,9 @@ Download the archive or installer of the newest release from the
 | Arch, CachyOS | `packaging/PKGBUILD` | `makepkg -si` in that folder |
 | Windows 10 and 11 (x64) | `belumi-<version>-windows-x64-setup.exe` | run the installer; the `.zip` is the portable version |
 
-The game needs resources prepared from your own Minecraft installation (they are Mojang's files and never ship with
-Belumi); see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Once installed, the launcher offers new versions itself
+The game needs Minecraft's files (they are Mojang's and never ship with
+Belumi): after you sign in, the launcher's **Download and prepare** button fetches them from Mojang's own servers (about 1 GB)
+and prepares them; see [docs/launcher.md](docs/launcher.md). Once installed, the launcher offers new versions itself
 (an **Update now** button, checked by SHA-256; for the AppImage and the packages use the new file or your package manager).
 
 ## Parts
@@ -64,7 +65,7 @@ cargo build --release -p belumi-launcher
 cd vendor/horizon && cargo build --profile fast -p horizon-client --features belumi
 ```
 
-The game needs prepared Minecraft resources from your own installation; see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+The game needs prepared Minecraft resources: the launcher downloads and prepares them (see [docs/launcher.md](docs/launcher.md)); by hand, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Documentation
 

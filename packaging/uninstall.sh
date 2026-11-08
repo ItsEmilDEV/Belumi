@@ -20,6 +20,7 @@ fi
 rm -f "$prefix/bin/belumi-launcher" "$prefix/bin/horizon-client" \
   "$prefix/share/applications/belumi-launcher.desktop" "$prefix/share/applications/belumi.desktop" \
   "$prefix/share/icons/hicolor/512x512/apps/belumi.png"
+rm -rf "$prefix/share/belumi/horizon-files"; rmdir "$prefix/share/belumi" 2>/dev/null || true
 if [ "$mode" = all ]; then
   rm -rf "${HOME}/.config/belumi" "${HOME}/.local/share/belumi" "${HOME}/.local/share/horizon"
   echo "Removed Belumi from $prefix and all its data (settings, accounts, resources). Worlds in your game folder stay."
