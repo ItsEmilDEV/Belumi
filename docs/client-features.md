@@ -25,6 +25,7 @@ extras) are on the same page as quick toggles.
 | Join link | `/joinlink`, Discord page | Copies `belumi://join/ADDRESS` for the server you are on; a friend with Belumi opens the link and the launcher asks before it joins ([launcher.md](launcher.md)). Discord's own "Join" button is not built |
 | Sound physics | Modules page (off by default) | The world's sounds (not music, not the interface) go through a reverb sized by the room you stand in: 14 rays from your head measure the walls every quarter second; the open air and a flat ground add nothing, a closet a little, a big cave a lot and long. The change is eased, so a door does not click. Sounds are not muffled by walls yet |
 | World history | Modules page, `/rollback` (single player) | A world you host or play keeps older versions of every chunk it saves over: up to 6 per chunk, at least 5 minutes apart, 256 MB in all (`<dimension>/belumi-history/X.Z/UNIXTIME.z`, written on a thread of its own). `/rollback list` tells how far back it goes; `/rollback RADIUS MINUTES` asks for the chunks within RADIUS (0 to 16) of you to go back to how they were MINUTES ago. An open world holds its chunks in memory, so it is applied when the dimension loads next: save and quit, open the world again. The state you rolled back from stays in the history, so a rollback can be rolled back. Only blocks and the chunk's own data: mobs and dropped items stay as they are now. `BELUMI_NO_HISTORY=1` turns it off |
+| Redstone workbench | Modules page | **Signal numbers** write the signal strength over redstone dust and weighted plates, daylight sensors and target blocks, and the delay of repeaters (`3t`), within 12 blocks, in the colour of the strength; **tick buttons** run `/tick` for you: freeze or unfreeze, step 1, 5 or 20 ticks, rate 1, 5, 10 or 20 per second (a world with commands on); the **Profiler** HUD module shows what the server tick spends its time on |
 | Packet inspector | F8 | Live packet rates and sizes, top packets by bytes, the latest packets |
 | Freecam | F9 | Detaches the camera and blocks all movement input of the player; WASD, Space, Shift, Ctrl for speed, the wheel changes speed |
 | Screen effects | | Vignette, saturation, contrast, colour temperature, sharpen, film grain ([effects.md](effects.md)) |
@@ -47,6 +48,7 @@ switch them off), the wheel resizes the chosen module, the arrows nudge it, Ctrl
 | Clock | The time, with or without seconds |
 | Recording | A blinking REC light with the time of the running recording |
 | Inventory | Your 27 storage slots as a small grid |
+| Profiler | In single player: the server tick's time (green under 25 ms of its 50) and the six parts that take the most (`tick_blocks`, `tick_mobs`, ...), smoothed over about ten ticks. In a world on a server it says so; the server's own numbers are not sent |
 | FPS | Frames per second, green from 60 |
 | Ping | Your latency on a server, green up to 80 ms |
 | Coordinates | Your block position |

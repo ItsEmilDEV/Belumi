@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Distant chunks (Bobby alternative): columns a server forgot stay drawn out to your render distance and are cached on disk
   for the next visit (`belumi-chunks/`, 1 GB limit); switch on the Modules page
 
+- Redstone workbench: signal numbers over dust, /tick buttons and a Profiler HUD module with the server tick's biggest parts
 - World history and `/rollback RADIUS MINUTES`: older chunk versions are kept, and the chunks around you go back to how they were
 - Sound physics (off by default): the world's sounds ring with the size of the room you are in
 - Launcher: install, update, switch off and remove client plugins from a plugin list (checksum, permissions shown); the game reloads plugins when they change
