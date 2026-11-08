@@ -259,6 +259,7 @@ dependencies = [
 name = "belumi-launcher"
 version = "0.1.0"
 dependencies = [
+ "belumi-client-plugin-api",
  "belumi-core",
  "belumi-presence",
  "eframe",
