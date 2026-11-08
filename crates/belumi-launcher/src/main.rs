@@ -10,6 +10,7 @@ mod game;
 mod heads;
 mod icons;
 mod join;
+mod plugins;
 mod i18n;
 mod kit;
 mod os;
@@ -67,6 +68,8 @@ enum Event {
     Update(Option<update::Release>),
     Updated(Result<(), String>),
     Shaders(Result<String, String>),
+    PluginList(Result<Vec<plugins::Entry>, String>),
+    PluginDone(Result<String, String>),
     Head(String, Option<Vec<u8>>),
 }
 
@@ -130,6 +133,8 @@ struct App {
     update_announced: bool,
     /// The Solas download runs.
     shaders_busy: bool,
+    plugin_list: Vec<plugins::Entry>,
+    plugin_busy: bool,
     /// The Solas pack's file name when the game folder has one; looked at again every few seconds.
     solas: Option<String>,
     solas_checked: Option<Instant>,
@@ -223,6 +228,8 @@ impl App {
             update_error: None,
             update_announced: false,
             shaders_busy: false,
+            plugin_list: Vec::new(),
+            plugin_busy: false,
             solas: None,
             solas_checked: None,
             update_manual: false,
@@ -279,6 +286,54 @@ impl App {
         }
         self.solas_checked = Some(Instant::now());
         self.solas = shaders::installed(&self.shader_dir());
+    }
+
+    fn plugin_dir(&self) -> std::path::PathBuf {
+        worlds::game_dir(&self.settings.game_dir)
+    }
+
+    /// Fetches the list of plugins from the address in the settings.
+    fn refresh_plugin_list(&mut self) {
+        let url = self.settings.plugin_index_url.trim().to_owned();
+        if self.plugin_busy || url.is_empty() {
+            return;
+        }
+        self.plugin_busy = true;
+        self.status = i18n::tr("Fetching the plugin list...");
+        let tx = self.tx.clone();
+        guarded(self.tx.clone(), move || {
+            let result = plugins::http_fetch(&url, 1 << 20)
+                .and_then(|bytes| String::from_utf8(bytes).map_err(|_| "The plugin list is not text.".to_owned()))
+                .and_then(|text| plugins::parse_index(&text));
+            let _ = tx.send(Event::PluginList(result));
+        });
+    }
+
+    /// Installs (or updates) one plugin of the list.
+    fn install_plugin(&mut self, entry: plugins::Entry) {
+        if self.plugin_busy {
+            return;
+        }
+        self.plugin_busy = true;
+        self.status = i18n::trf("Installing {}...", &[&entry.name]);
+        let (tx, dir) = (self.tx.clone(), self.plugin_dir());
+        guarded(self.tx.clone(), move || {
+            let result = plugins::install(&entry, &dir, &plugins::http_fetch).map(|()| i18n::trf("Installed {}. The game loads it by itself.", &[&entry.name]));
+            let _ = tx.send(Event::PluginDone(result));
+        });
+    }
+
+    fn remove_plugin(&mut self, name: &str) {
+        self.status = match plugins::remove(&self.plugin_dir(), name) {
+            Ok(()) => i18n::trf("Removed {}.", &[name]),
+            Err(e) => e,
+        };
+    }
+
+    fn switch_plugin(&mut self, name: &str, on: bool) {
+        if let Err(e) = plugins::set_enabled(&self.plugin_dir(), name, on) {
+            self.status = e;
+        }
     }
 
     /// Downloads the Solas shader pack from Modrinth (after the player asked for it).
@@ -797,6 +852,23 @@ impl App {
                         self.status = i18n::trf("Update available: {}", &[&found.tag]);
                     }
                     self.update = release;
+                }
+                Event::PluginList(result) => {
+                    self.plugin_busy = false;
+                    match result {
+                        Ok(list) => {
+                            self.status = i18n::trf("{} plugins in the list.", &[&list.len().to_string()]);
+                            self.plugin_list = list;
+                        }
+                        Err(e) => self.status = e,
+                    }
+                }
+                Event::PluginDone(result) => {
+                    self.plugin_busy = false;
+                    self.status = match result {
+                        Ok(text) => text,
+                        Err(e) => e,
+                    };
                 }
                 Event::Shaders(result) => {
                     self.shaders_busy = false;

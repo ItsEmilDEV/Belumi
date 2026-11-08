@@ -22,6 +22,7 @@ cargo run --release -p belumi-launcher   # or: cargo run -p belumi-launcher
 
 - **Play** is the centre: the account, the big Play button, then your servers (with a live ping: online or offline,
   players, latency) and your singleplayer worlds with a one-click start. "Main menu" starts the game without joining.
+- Plugins: Settings > Client plugins installs, updates, switches off and removes client plugins from a list you point it at ([client-plugins.md](client-plugins.md#installing-from-the-launcher)); the running game reloads them by itself.
 - Join links: `belumi://join/host:port` starts the launcher (the .desktop file and the Windows installer register the scheme), which asks "Join / Join offline / Cancel" before it starts the game on that server. In the game, Right Shift > Modules > Discord presence > "Copy join link" or `/joinlink` copies the link for the server you are on.
 - Switching in the game: the game lists the saved accounts (`belumi-accounts.json` in the game folder, names and ids only); picking one writes `belumi-switch.json` and quits, and the launcher signs that account in and starts the game on the same server. Not available when the launcher closes itself at start.
 - A server can have its own account (select the server, pick one under Account): the launcher switches to it before

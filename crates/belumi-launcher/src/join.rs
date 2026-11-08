@@ -13,6 +13,7 @@ pub fn parse(link: &str) -> Option<String> {
 }
 
 /// The link that joins `address`.
+#[cfg(test)]
 pub fn link(address: &str) -> String {
     format!("{SCHEME}join/{}", address.trim())
 }

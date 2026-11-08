@@ -18,6 +18,26 @@ const FUEL_PER_CALL: u64 = 20_000_000;
 const MEMORY_LIMIT: usize = 32 * 1024 * 1024;
 const MAX_QUEUED_CHAT: usize = 64;
 const MAX_SCREEN_JSON: usize = 8192;
+/// A file with this name in a plugin's folder switches the plugin off.
+pub const DISABLED_MARKER: &str = ".disabled";
+
+/// A number that changes when a plugin is added, removed, switched on or off, or its files change: the game reloads the
+/// plugins when it differs from the one it saw last.
+pub fn dir_signature(dir: &Path) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut folders: Vec<_> = fs::read_dir(dir).into_iter().flatten().filter_map(Result::ok).map(|e| e.path()).filter(|p| p.is_dir()).collect();
+    folders.sort();
+    for folder in folders {
+        folder.file_name().hash(&mut hasher);
+        for name in ["plugin.toml", "plugin.wasm", DISABLED_MARKER] {
+            let meta = fs::metadata(folder.join(name)).ok();
+            meta.as_ref().map(|m| m.len()).hash(&mut hasher);
+            meta.and_then(|m| m.modified().ok()).hash(&mut hasher);
+        }
+    }
+    hasher.finish()
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum PluginError {
@@ -420,6 +440,10 @@ impl Host {
             .collect();
         folders.sort();
         for folder in folders {
+            // A plugin the player switched off in the launcher keeps its files and stays unloaded.
+            if folder.join(DISABLED_MARKER).exists() {
+                continue;
+            }
             if let Err(e) = self.load_folder(&folder) {
                 self.errors.push(format!("{}: {e}", folder.display()));
             }
@@ -620,6 +644,27 @@ mod tests {
         host.dispatch(&Event::Tick { tick: 1 });
         assert!(host.shared().screens().is_empty());
         assert!(host.shared().take_open().is_none());
+    }
+
+    #[test]
+    fn a_switched_off_plugin_stays_unloaded_and_the_signature_notices_changes() {
+        let dir = std::env::temp_dir().join(format!("belumi-plugins-sig-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        let folder = dir.join("t");
+        fs::create_dir_all(&folder).unwrap();
+        fs::write(folder.join("plugin.toml"), "name = \"t\"\nversion = \"1\"\napi_version = 1\n").unwrap();
+        fs::write(folder.join("plugin.wasm"), module("(i32.const 0)")).unwrap();
+        let before = dir_signature(&dir);
+        assert_eq!(before, dir_signature(&dir), "stable while nothing changes");
+        let mut host = Host::new().unwrap();
+        host.load_dir(&dir);
+        assert_eq!(host.info().len(), 1);
+        fs::write(folder.join(DISABLED_MARKER), "").unwrap();
+        assert_ne!(before, dir_signature(&dir), "switching it off changes the signature");
+        let mut host = Host::new().unwrap();
+        host.load_dir(&dir);
+        assert!(host.info().is_empty() && host.take_errors().is_empty());
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

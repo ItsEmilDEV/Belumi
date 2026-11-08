@@ -831,6 +831,58 @@ impl App {
                 "Solas by Septonious, all rights reserved. Belumi downloads it from Modrinth and never ships it. The game picks it by itself the first time it finds it.",
             )));
         });
+        section(ui, &tr("Client plugins"));
+        card(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(tr("List address"));
+                changed |= ui
+                    .add(egui::TextEdit::singleline(&mut self.settings.plugin_index_url).hint_text("https://.../plugins.json").desired_width(ui.available_width().max(260.0) - 90.0))
+                    .changed();
+                if action(ui, Kind::Secondary, None, &tr("Refresh"), !self.plugin_busy && !self.settings.plugin_index_url.trim().is_empty(), vec2(0.0, 28.0)).clicked() {
+                    self.refresh_plugin_list();
+                }
+            });
+            let have = crate::plugins::installed(&self.plugin_dir());
+            if have.is_empty() && self.plugin_list.is_empty() {
+                ui.label(muted(tr("No plugins yet. Enter the address of a plugin list, or put a plugin in the game folder's belumi-plugins.")));
+            }
+            for p in &have {
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new(format!("{} {}", p.name, p.version)).strong());
+                    let label = if p.enabled { tr("Switch off") } else { tr("Switch on") };
+                    if action(ui, Kind::Secondary, None, &label, true, vec2(0.0, 24.0)).clicked() {
+                        self.switch_plugin(&p.name, !p.enabled);
+                    }
+                    if action(ui, Kind::Secondary, None, &tr("Remove"), true, vec2(0.0, 24.0)).clicked() {
+                        self.remove_plugin(&p.name);
+                    }
+                });
+            }
+            let mut to_install = None;
+            for e in &self.plugin_list {
+                let mine = have.iter().find(|p| p.name == e.name);
+                if mine.is_some_and(|p| p.version == e.version) {
+                    continue;
+                }
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new(format!("{} {}", e.name, e.version)).strong());
+                    let label = if mine.is_some() { tr("Update") } else { tr("Install") };
+                    if action(ui, Kind::Primary, Some(Icon::Download), &label, !self.plugin_busy, vec2(0.0, 24.0)).clicked() {
+                        to_install = Some(e.clone());
+                    }
+                });
+                if !e.description.is_empty() {
+                    ui.label(muted(e.description.clone()));
+                }
+                let asks = if e.permissions.is_empty() { tr("nothing") } else { e.permissions.join(", ") };
+                ui.label(muted(trf("Asks for: {}", &[&asks])));
+            }
+            if let Some(entry) = to_install {
+                self.install_plugin(entry);
+            }
+            ui.label(muted(tr("A plugin is code that runs in a sandbox and may only do what it asks for. Install plugins of people you trust.")));
+        });
         section(ui, &tr("Discord"));
         card(ui, |ui| {
             changed |= ui

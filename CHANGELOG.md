@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Distant chunks (Bobby alternative): columns a server forgot stay drawn out to your render distance and are cached on disk
   for the next visit (`belumi-chunks/`, 1 GB limit); switch on the Modules page
 
+- Launcher: install, update, switch off and remove client plugins from a plugin list (checksum, permissions shown); the game reloads plugins when they change
 - Join links: `belumi://join/host:port` opens the launcher (with a question first); `/joinlink` copies the link
 - Combat log: swings, hits, damage dealt and taken and clicks per second for every fight, on a page (`/combat`)
 - Photo mode on the free camera: orbit (G), time-lapse (H) and a stitched 360° panorama (J)

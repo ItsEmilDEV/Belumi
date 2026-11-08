@@ -49,6 +49,8 @@ pub struct Settings {
     pub check_updates: bool,
     /// The player was asked whether to download the Solas shader pack (the question comes once).
     pub solas_asked: bool,
+    /// Where the list of client plugins comes from (a JSON file over https); empty means no list.
+    pub plugin_index_url: String,
     /// Discord Rich Presence of the launcher and, through `BELUMI_NO_DISCORD`, of the game.
     pub discord_presence: bool,
     /// The launcher's presence names the signed-in account.
@@ -113,6 +115,7 @@ impl Default for Settings {
             legacy_account: None,
             check_updates: true,
             solas_asked: false,
+            plugin_index_url: String::new(),
             discord_presence: true,
             discord_show_account: false,
             update_channel: "stable".into(),

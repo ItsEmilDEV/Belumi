@@ -73,6 +73,31 @@ state, false for a button); the plugin sends the screen again to show a new stat
 .label("...").button("greet", "Say hello").toggle("loud", "Shout", false))`, then `host::open_screen()`.
 `examples/hello-client-plugin` opens one with the O key or `/hello screen`.
 
+## Installing from the launcher
+
+Launcher > Settings > **Client plugins**: enter the address of a plugin list (a JSON file over https), press Refresh, and Install or
+Update what you want; installed plugins can be switched off or removed there. Plugins land in the game folder's
+`belumi-plugins/<name>/`; the game notices the change within two seconds and reloads them (`Plugins changed: reloading them.`).
+A switched-off plugin has an empty `.disabled` file in its folder.
+
+Belumi hosts no list; anyone can host one:
+
+```json
+{"plugins": [{
+  "name": "compass",
+  "version": "1.0",
+  "description": "What it does",
+  "permissions": ["hud", "chat"],
+  "manifest_url": "https://example.org/compass/plugin.toml",
+  "wasm_url": "https://example.org/compass/plugin.wasm",
+  "wasm_sha256": "<64 hex digits of plugin.wasm>"
+}]}
+```
+
+The launcher shows the permissions before the install and refuses it when the downloaded manifest has another name, version or
+permissions than the list, when the module is not WebAssembly or does not match `wasm_sha256`, or when a link is not https.
+Nothing is written before every check passed.
+
 ## Safety
 
 Each call gets a fuel budget (20 million instructions) and each instance 32 MiB of memory. A trap, an endless loop or an
