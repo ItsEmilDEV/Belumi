@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Distant chunks (Bobby alternative): columns a server forgot stay drawn out to your render distance and are cached on disk
   for the next visit (`belumi-chunks/`, 1 GB limit); switch on the Modules page
 
+- Way back: a compass HUD module (`/compass`), a breadcrumb trail (`/trail`) and automatic portal and spawn waypoints
 - Client plugins can have their own screens (labels, buttons, toggles): permission `screen`, shown on the client screen
 - Switch account in the game (Modules page): the launcher signs in the account you pick and restarts the game on the same server
 

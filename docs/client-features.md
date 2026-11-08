@@ -17,6 +17,7 @@ extras) are on the same page as quick toggles.
 | World map | M | Overlay of everything you explored, saved per world and server. Left button drags, arrows/WASD move, wheel zooms, C centres on you, PageUp/PageDown change the layer (Home: surface, End: follow you), B sets a waypoint at the crosshair, Enter teleports there (needs permission); the player stands still while it is open |
 | Waypoints | B | Saves your position; `/waypoint add [name]`, `remove NAME`, `list`, `clear`, `import FOLDER_OR_FILE` (Xaero waypoint files, dimension from the `dim%N` folder, duplicates skipped); labels in the world, on the maps and a nearest list |
 | Distant chunks | Modules page | Like the Bobby mod: columns a server sent stay drawn after it forgot them, out to your render distance (raise it past the server's), and are cached in `belumi-chunks/` so the next visit shows them before the server sends anything. The server's own columns replace cached ones; cached ones are not updated while you are away. The cache is pruned to 1 GB, oldest first; deleting the folder clears it |
+| Breadcrumb trail | Modules page, `/trail [on\|off\|clear]` | Small dots in the world behind you, one every 4 blocks (the last 200, per dimension), for finding the way back. The game also sets waypoints by itself: `Portal Overworld` / `Portal Nether` where you left a dimension, and `Spawn` |
 | Packet inspector | F8 | Live packet rates and sizes, top packets by bytes, the latest packets |
 | Freecam | F9 | Detaches the camera and blocks all movement input of the player; WASD, Space, Shift, Ctrl for speed, the wheel changes speed |
 | Screen effects | | Vignette, saturation, contrast, colour temperature, sharpen, film grain ([effects.md](effects.md)) |
@@ -42,6 +43,7 @@ switch them off), the wheel resizes the chosen module, the arrows nudge it, Ctrl
 | FPS | Frames per second, green from 60 |
 | Ping | Your latency on a server, green up to 80 ms |
 | Coordinates | Your block position |
+| Compass | An arrow, the name and the distance of a waypoint: the nearest one, or the one you set with `/compass NAME`; `/compass back` points at where your breadcrumb trail began (the way back) |
 
 Keystrokes light up with a short fade. Every module except armor and inventory has a size and a background setting in the
 builder (0 % leaves only the text).
